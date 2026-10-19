@@ -1,0 +1,154 @@
+openapi: 3.0.3
+info:
+  title: Library API
+  version: 1.0.0
+servers:
+  - url: /api/v1
+
+paths:
+  /loans:
+    post:
+      tags: [Loans]
+      operationId: borrowBook
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BorrowRequest'
+      responses:
+        '201':
+          description: Loan created
+          headers:
+            Location:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Loan'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /loans/{loanId}/return:
+    post:
+      tags: [Loans]
+      operationId: returnBook
+      parameters:
+        - name: loanId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Loan returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Loan'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /members/{memberId}/loans:
+    get:
+      tags: [Loans]
+      operationId: getActiveLoans
+      parameters:
+        - name: memberId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+      responses:
+        '200':
+          description: Active loans of the member
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Loan'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  schemas:
+    BorrowRequest:
+      type: object
+      required: [memberId, bookId]
+      properties:
+        memberId:
+          type: integer
+          format: int64
+          minimum: 1
+        bookId:
+          type: integer
+          format: int64
+          minimum: 1
+
+    Loan:
+      type: object
+      required: [id, memberId, bookId, borrowedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        memberId:
+          type: integer
+          format: int64
+        bookId:
+          type: integer
+          format: int64
+        borrowedAt:
+          type: string
+          format: date-time
+        returnedAt:
+          type: string
+          format: date-time
+
+    Problem:
+      type: object
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+
+  responses:
+    BadRequest:
+      description: Invalid input
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    NotFound:
+      description: Member, book or loan not found
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Conflict:
+      description: Business rule violated
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
