@@ -43,7 +43,8 @@ class LoanControllerTest {
                                 {"memberId": 1, "bookId": 1}
                                 """))
                 .hasStatus(HttpStatus.CREATED)
-                .hasHeader("Location", "http://localhost/api/v1/loans/" + loan.id().value())
+                .hasHeader(
+                        "Location", "http://localhost/api/v1/loans/" + loan.id().value())
                 .bodyJson()
                 .isLenientlyEqualTo("""
                         {
@@ -84,7 +85,8 @@ class LoanControllerTest {
         assertThat(mvc.get().uri("/api/v1/members/{memberId}/loans", MEMBER.value()))
                 .hasStatus(HttpStatus.OK)
                 .bodyJson()
-                .isLenientlyEqualTo("""
+                .isLenientlyEqualTo(
+                        """
                         [
                           {"id": "%s", "memberId": 1, "bookId": 1, "borrowedAt": "2026-10-19T10:00:00Z"},
                           {"id": "%s", "memberId": 1, "bookId": 2, "borrowedAt": "2026-10-19T10:00:00Z"}

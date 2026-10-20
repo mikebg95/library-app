@@ -82,6 +82,9 @@ class LoanPersistenceAdapterTest {
         entityManager.flush();
         entityManager.clear();
 
-        assertThat(adapter.findById(saved.id())).get().extracting(Loan::returnedAt).isEqualTo(RETURNED_AT);
+        assertThat(adapter.findById(saved.id()))
+                .get()
+                .extracting(Loan::returnedAt)
+                .isEqualTo(RETURNED_AT);
     }
 }
