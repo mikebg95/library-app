@@ -482,9 +482,9 @@ class ApiExceptionHandler {
     c:`@Configuration
 class ApplicationConfig {
   @Bean
-  LoanUseCases loanUseCases(LoanRepository loans, MemberRepository members,
-                            BookRepository books, Clock clock) {
-    return new LoanService(loans, members, books, clock);
+  LoanUseCases loanUseCases(MemberRepository members, BookRepository books,
+                            LoanRepository loans, Clock clock) {
+    return new LoanService(members, books, loans, clock);
   }
 }`},
    {id:'w-tx', t:'Transacties', s:'nog te kiezen', l:['optie 1: decorator','optie 2: @Transactional','  op LoanService'],
@@ -522,24 +522,35 @@ Clock clock() { return Clock.systemUTC(); }`}
     e:'Application · use cases', t:'LoanService',
     b:'Voert de use cases uit en bewaakt de regels die over meerdere leningen gaan. Plain Java: geen annotaties.',
     p:['De max-3-regel gaat over de verzameling leningen van een lid, dus die zit hier','Clock wordt meegegeven: borrowedAt is in tests vast te zetten'],
-    c:`public final class LoanService implements LoanUseCases {
-  static final int MAX_ACTIVE_LOANS = 3;
+    c:`public class LoanService implements LoanUseCases {
+  private static final int MAX_ACTIVE_LOANS = 3;
 
-  private final LoanRepository loans;
   private final MemberRepository members;
   private final BookRepository books;
+  private final LoanRepository loans;
   private final Clock clock;
-  // constructor, borrow, returnBook, activeLoansOf
+
+  public LoanService(MemberRepository members, BookRepository books,
+                     LoanRepository loans, Clock clock) { … }
+
+  // borrow, returnBook, activeLoansOf
 }`,
     ch:[
      {id:'s-borrow', t:'borrow()', l:['1 lid bestaat?   404','2 boek bestaat?  404','3 < 3 lopend?    409','4 boek vrij?     409','5 start + save'],
       b:'De volgorde van de checks is bewust: eerst bestaan (404), dan regels (409).',
       c:`public Loan borrow(MemberId memberId, BookId bookId) {
-  if (!members.exists(memberId)) throw new MemberNotFoundException(memberId);
-  if (!books.exists(bookId))     throw new BookNotFoundException(bookId);
-  if (loans.findActiveByMember(memberId).size() >= MAX_ACTIVE_LOANS)
+  if (!members.exists(memberId)) {
+    throw new MemberNotFoundException(memberId);
+  }
+  if (!books.exists(bookId)) {
+    throw new BookNotFoundException(bookId);
+  }
+  if (loans.findActiveByMember(memberId).size() >= MAX_ACTIVE_LOANS) {
     throw new MaxLoansReachedException(memberId);
-  if (loans.isOnLoan(bookId))    throw new BookAlreadyOnLoanException(bookId);
+  }
+  if (loans.isOnLoan(bookId)) {
+    throw new BookAlreadyOnLoanException(bookId);
+  }
   return loans.save(Loan.start(memberId, bookId, clock.instant()));
 }`,
       q:[['Waarom eerst 404 en dan 409?','Een regel toepassen op een lid dat niet bestaat is zinloos. Eerst de identiteit, dan de toestand.'],
@@ -547,15 +558,16 @@ Clock clock() { return Clock.systemUTC(); }`}
      {id:'s-return', t:'returnBook()', l:['1 ophalen   404','2 loan.returnBook','  al terug? 409','3 save'],
       b:'De service haalt op en slaat op. De regel "niet twee keer terugbrengen" zit in Loan zelf.',
       c:`public Loan returnBook(LoanId loanId) {
-  Loan loan = loans.findById(loanId)
-      .orElseThrow(() -> new LoanNotFoundException(loanId));
+  Loan loan = loans.findById(loanId).orElseThrow(() -> new LoanNotFoundException(loanId));
   loan.returnBook(clock.instant());
   return loans.save(loan);
 }`},
      {id:'s-active', t:'activeLoansOf()', l:['lid bestaat?  404','findActiveByMember'],
       b:'Leest alleen. Controleert eerst of het lid bestaat, zodat een onbekend lid een 404 geeft in plaats van een lege lijst.',
       c:`public List<Loan> activeLoansOf(MemberId memberId) {
-  if (!members.exists(memberId)) throw new MemberNotFoundException(memberId);
+  if (!members.exists(memberId)) {
+    throw new MemberNotFoundException(memberId);
+  }
   return loans.findActiveByMember(memberId);
 }`}
     ]},
@@ -628,33 +640,51 @@ public record BookId(long value) {
      {id:'o-loan', t:'LoanRepository', l:['findById','findActiveByMember','isOnLoan','save'],
       b:'De opslag van leningen, in domeintaal.',
       c:`public interface LoanRepository {
-  Optional<Loan> findById(LoanId id);
+  Optional<Loan> findById(LoanId loanId);
   List<Loan> findActiveByMember(MemberId memberId);
   boolean isOnLoan(BookId bookId);
   Loan save(Loan loan);
 }`},
      {id:'o-member', t:'MemberRepository', l:['exists(MemberId)'],
-      b:'Eén methode, nodig voor de 404. Omdat het maar één methode heeft, kan een test gewoon id -> true meegeven.',
+      b:'Eén methode, nodig voor de 404. Omdat het maar één methode heeft, kan een test gewoon existingMembers::contains meegeven, zonder fake-klasse.',
       c:`public interface MemberRepository {
-  boolean exists(MemberId id);
+  boolean exists(MemberId memberId);
 }`},
      {id:'o-book', t:'BookRepository', l:['exists(BookId)'],
-      b:'Hetzelfde voor boeken.'},
+      b:'Hetzelfde voor boeken.',
+      c:`public interface BookRepository {
+  boolean exists(BookId bookId);
+}`},
      {id:'o-fake', t:'InMemory fake', s:'alleen in tests', l:['Map<LoanId, Loan>','zelfde gedrag'],
       b:'Een implementatie van LoanRepository met een HashMap, voor de domeintests. Geen database, geen Spring, milliseconden.',
       c:`class InMemoryLoanRepository implements LoanRepository {
   private final Map<LoanId, Loan> store = new HashMap<>();
 
-  public Optional<Loan> findById(LoanId id) { return Optional.ofNullable(store.get(id)); }
-  public List<Loan> findActiveByMember(MemberId m) {
+  @Override
+  public Optional<Loan> findById(LoanId loanId) {
+    return Optional.ofNullable(store.get(loanId));
+  }
+
+  @Override
+  public List<Loan> findActiveByMember(MemberId memberId) {
     return store.values().stream()
-        .filter(l -> l.memberId().equals(m) && l.isActive()).toList();
+        .filter(loan -> loan.isActive() && loan.memberId().equals(memberId))
+        .toList();
   }
-  public boolean isOnLoan(BookId b) {
-    return store.values().stream().anyMatch(l -> l.bookId().equals(b) && l.isActive());
+
+  @Override
+  public boolean isOnLoan(BookId bookId) {
+    return store.values().stream()
+        .anyMatch(loan -> loan.isActive() && loan.bookId().equals(bookId));
   }
-  public Loan save(Loan loan) { store.put(loan.id(), loan); return loan; }
-}`}
+
+  @Override
+  public Loan save(Loan loan) {
+    store.put(loan.id(), loan);
+    return loan;
+  }
+}`,
+      q:[['Kan deze fake controleren of save wordt aangeroepen?','Nee. De fake bewaart hetzelfde object dat de service wijzigt, dus een vergeten save valt hier niet op. De adapter- en integratietests dekken dat.']]}
     ]}
   ]},
  {id:'outbound', label:'JPA-adapter', k:'adapter', region:[1000,420,320,200], slot:[1088,508,199,86],
@@ -758,16 +788,25 @@ class TestcontainersConfiguration {
   b:'Elke laag heeft zijn eigen test, zo licht mogelijk. Hoe dichter bij het domein, hoe sneller en hoe meer tests.',
   q:[['Waarom hier een mock en daar een fake?','In de controller-slice test je vertaling en statuscodes; het gedrag van het domein doet er daar niet toe. In domeintests is dat gedrag juist het punt.']],
   ch:[
-   {id:'t-domain', t:'Domeintests', s:'JUnit + fake', l:['vierde lening → fout','boek uitgeleend → fout','twee keer terug → fout','onbekend lid → fout'],
-    b:'Testen de regels zonder Spring en zonder database. Draaien in milliseconden.',
-    c:`@Test
-void vierde_lening_wordt_geweigerd() {
-  var loans = new InMemoryLoanRepository();
-  var service = new LoanService(loans, id -> true, id -> true, FIXED_CLOCK);
-  for (long b = 1; b <= 3; b++) service.borrow(MEMBER, new BookId(b));
+   {id:'t-domain', t:'Domeintests', s:'JUnit + fake', l:['ids + Loan (LoanTest)','LoanServiceTest:','  borrow · activeLoansOf','  · returnBook'],
+    b:'Testen de regels zonder Spring en zonder database. Draaien in milliseconden. Namen volgen methode_when…_then….',
+    p:['Leden en boeken: een Set met existingMembers::contains als port','Leningen: InMemoryLoanRepository','Tijd: Clock.fixed(NOW, UTC)'],
+    c:`class LoanServiceTest {
+  private final Set<MemberId> existingMembers = new HashSet<>(Set.of(MEMBER));
+  private final Set<BookId> existingBooks = new HashSet<>(Set.of(BOOK));
+  private final InMemoryLoanRepository loans = new InMemoryLoanRepository();
 
-  assertThrows(MaxLoansReachedException.class,
-      () -> service.borrow(MEMBER, new BookId(4)));
+  private final LoanService service = new LoanService(
+      existingMembers::contains, existingBooks::contains, loans, Clock.fixed(NOW, ZoneOffset.UTC));
+
+  @Test
+  void borrow_whenMemberHasThreeActiveLoans_throwMaxLoansReachedException() {
+    loans.save(Loan.start(MEMBER, new BookId(2), NOW));
+    loans.save(Loan.start(MEMBER, new BookId(3), NOW));
+    loans.save(Loan.start(MEMBER, new BookId(4), NOW));
+
+    assertThatThrownBy(() -> service.borrow(MEMBER, BOOK)).isInstanceOf(MaxLoansReachedException.class);
+  }
 }`},
    {id:'t-web', t:'@WebMvcTest', s:'controller-slice', l:['POST → 201 + body','MaxLoans → 409','veld mist → 400','@MockitoBean port'],
     b:'Start alleen de web-laag. Test vertaling, statuscodes en de foutvorm uit het contract.',
@@ -791,28 +830,30 @@ class LoansControllerTest {
   ]},
  {id:'archunit', label:'ArchUnit', k:'quality', region:[700,845,380,180], slot:[732,908,316,94],
   e:'Kwaliteit · architectuurtests', t:'ArchUnit-regels',
-  b:'Vier regels maken de architectuur uitvoerbaar. Breekt iemand er een, dan wordt de build rood met de reden erbij.',
+  b:'Vier regels maken de architectuur uitvoerbaar. Breekt iemand er een, dan wordt de build rood met de reden erbij. Alle regels staan als @ArchTest-velden in één klasse, ArchitectureTest.',
+  p:['@AnalyzeClasses(packages = "dev.michaelgoldman.libraryapp", importOptions = DoNotIncludeTests)','"Depend on" = de klasse noemt de andere klasse ergens: aanroep, veld, parameter, extends, annotatie'],
   q:[['Waarom ArchUnit?','Alles zit in één Maven-project, dus de compiler houdt een verkeerde import niet tegen. ArchUnit wel, en de regels zijn meteen uitvoerbare documentatie.']],
   ch:[
-   {id:'au-1', t:'R1 · kern', l:['domain ✗→ Spring','domain ✗→ JPA · Jackson'], b:'Het domein kent geen frameworks.',
+   {id:'au-1', t:'R1 · kern', l:['domain · application','✗→ Spring · JPA · Jackson'], b:'De kern kent geen frameworks. Ook application valt eronder: LoanService heeft geen @Service.',
+    p:['Twee Jackson-packages: Jackson 3 zit in tools.jackson, de annotaties bleven in com.fasterxml.jackson'],
     c:`@ArchTest
-static final ArchRule domain_is_framework_free = noClasses()
-    .that().resideInAPackage("..domain..")
+static final ArchRule coreIsFrameworkFree = noClasses()
+    .that().resideInAnyPackage("..domain..", "..application..")
     .should().dependOnClassesThat().resideInAnyPackage(
         "org.springframework..", "jakarta.persistence..", "tools.jackson..", "com.fasterxml.jackson..");`},
-   {id:'au-2', t:'R2 · richting', l:['domain · application','✗→ adapter · config'], b:'Alle afhankelijkheden wijzen naar binnen.',
+   {id:'au-2', t:'R2 · richting', l:['domain · application','✗→ adapter · config'], b:'Alle afhankelijkheden wijzen naar binnen. ..adapter.. dekt zowel de web- als de persistence-adapter.',
     c:`@ArchTest
-static final ArchRule dependencies_point_inward = noClasses()
+static final ArchRule dependenciesPointInward = noClasses()
     .that().resideInAnyPackage("..domain..", "..application..")
     .should().dependOnClassesThat().resideInAnyPackage("..adapter..", "..config..");`},
-   {id:'au-3', t:'R3 · contract', l:['DTO\'s alleen in','adapter.in.web'], b:'De JSON-vormen uit het contract komen niet verder dan de controller.',
+   {id:'au-3', t:'R3 · contract', l:['DTO\'s alleen in','adapter.in.web'], b:'De gegenereerde LoansApi en DTO\'s mogen alleen door de web-adapter genoemd worden. Andersom dan R1 en R2: niet wat een klasse gebruikt, maar wie haar gebruikt.',
     c:`@ArchTest
-static final ArchRule contract_stays_at_the_edge = noClasses()
-    .that().resideOutsideOfPackage("..adapter.in.web..")
-    .should().dependOnClassesThat().resideInAPackage("..adapter.in.web.api..");`},
-   {id:'au-4', t:'R4 · entities', l:['@Entity alleen in','adapter.out.persistence'], b:'Het databasemodel blijft in de adapter.',
+static final ArchRule dtosStayInWebAdapter = classes()
+    .that().resideInAPackage("..adapter.in.web.api..")
+    .should().onlyHaveDependentClassesThat().resideInAPackage("..adapter.in.web..");`},
+   {id:'au-4', t:'R4 · entities', l:['@Entity alleen in','adapter.out.persistence','nu rood: nog geen entity'], b:'Het databasemodel blijft in de adapter. Rood tot LoanEntity bestaat: ArchUnit faalt standaard als een regel nul klassen controleert (failOnEmptyShould), omdat dat meestal een tikfout is.',
     c:`@ArchTest
-static final ArchRule entities_stay_in_persistence = classes()
+static final ArchRule entitiesStayInPersistenceAdapter = classes()
     .that().areAnnotatedWith(Entity.class)
     .should().resideInAPackage("..adapter.out.persistence..");`}
   ]},
