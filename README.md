@@ -9,7 +9,15 @@ It is deliberately small, so every line can be explained and defended.
 - Java 25
 - Docker (PostgreSQL runs in a Testcontainers container, for the tests and when running locally)
 
-## Run it
+## Run everything with Docker
+
+```bash
+docker compose up --build
+```
+
+This starts PostgreSQL 18, the backend and the front-desk screen. Open `http://localhost:3000` for the screen; the API is also on `http://localhost:8080`. Only Docker is needed. Stop with `docker compose down` (add `-v` to also delete the database).
+
+## Run it for development
 
 ```bash
 cd backend
