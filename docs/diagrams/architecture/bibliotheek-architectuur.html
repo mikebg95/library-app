@@ -148,14 +148,14 @@ svg text{font-family:var(--font-body);fill:var(--ink)}
         <text x="80" y="805" style="font-weight:600;font-size:13px;fill:var(--muted)">API-applicatie</text>
         <text x="80" y="820" style="font-size:10px;fill:var(--muted)">[Container: Java 25 · Spring Boot 4 · Maven]</text>
 
-        <g class="hit ad ghost" data-node="balie" tabindex="0" role="button" aria-label="Baliescherm">
-          <rect class="shape" x="110" y="40" width="240" height="125" rx="10" style="stroke-dasharray:6 4"/>
+        <g class="hit ad" data-node="balie" tabindex="0" role="button" aria-label="Baliescherm">
+          <rect class="shape" x="110" y="40" width="240" height="125" rx="10"/>
           <text class="t-h" x="230" y="70" text-anchor="middle">Baliescherm</text>
-          <text class="t-s" x="230" y="87" text-anchor="middle">[Vue SPA · nog niet gebouwd]</text>
-          <text class="t-b sum" data-for="balie" x="230" y="122" text-anchor="middle">optioneel · frontend/ is leeg</text>
+          <text class="t-s" x="230" y="87" text-anchor="middle">[Container: Vue SPA]</text>
+          <text class="t-b sum" data-for="balie" x="230" y="122" text-anchor="middle">gebruikt gegenereerde TS-types</text>
         </g>
-        <rect class="prong ghost" x="213" y="165" width="10" height="63" rx="2"/>
-        <rect class="prong ghost" x="237" y="165" width="10" height="63" rx="2"/>
+        <rect class="prong" x="213" y="165" width="10" height="63" rx="2"/>
+        <rect class="prong" x="237" y="165" width="10" height="63" rx="2"/>
 
         <g class="hit ct" data-node="contract" tabindex="0" role="button" aria-label="Contract openapi.yaml">
           <path class="shape" d="M440 30 H680 L700 50 V190 H440 Z"/>
@@ -163,14 +163,14 @@ svg text{font-family:var(--font-body);fill:var(--ink)}
           <text class="t-h" x="570" y="62" text-anchor="middle">openapi.yaml</text>
           <text class="t-s" x="570" y="79" text-anchor="middle">[Specified contract · v1]</text>
           <text class="t-b sum" data-for="contract" x="570" y="118" text-anchor="middle">3 endpoints · fouten als Problem</text>
-          <text class="t-b sum" data-for="contract" x="570" y="136" text-anchor="middle">genereert LoansApi + DTO's</text>
+          <text class="t-b sum" data-for="contract" x="570" y="136" text-anchor="middle">genereert Java en TypeScript</text>
           <rect class="sock-c" x="196" y="216" width="68" height="28" rx="6"/>
           <circle class="hole-c" cx="218" cy="230" r="5.5"/><circle class="hole-c" cx="242" cy="230" r="5.5"/>
           <text x="276" y="258" style="font-weight:600;font-size:12px;fill:var(--ct)">HTTP-contract</text>
           <text x="276" y="273" style="font-size:10px;font-style:italic;fill:var(--ct)">[specified contract]</text>
         </g>
-        <path class="wire-c ghost" d="M440 100 L356 100" marker-end="url(#arc)"/>
-        <text class="ghost" x="398" y="92" text-anchor="middle" style="font-size:9.5px;fill:var(--ct)">later: TS</text>
+        <path class="wire-c" d="M440 100 L356 100" marker-end="url(#arc)"/>
+        <text x="398" y="92" text-anchor="middle" style="font-size:9.5px;fill:var(--ct)">genereert</text>
         <path class="wire-c" d="M500 190 L500 330 L330 330 L330 366" marker-end="url(#arc)"/>
         <text x="508" y="252" style="font-size:9.5px;fill:var(--ct)">genereert LoansApi + DTO's</text>
         <path class="wire" d="M230 244 L230 366" marker-end="url(#ar)"/>
@@ -306,40 +306,45 @@ svg text{font-family:var(--font-body);fill:var(--ink)}
 const TREE = {id:'overview', label:'Overzicht', k:'quality', region:[0,0,1600,1040],
  e:'Overzicht', t:'Bibliotheek-app',
  b:'Een baliescherm voor bibliotheekmedewerkers: een boek uitlenen, terugnemen en de lopende leningen van een lid bekijken. Bewust klein, zodat elke regel uit te leggen is. Twee pillars van Flock staan centraal: specified contracts (amber) en domain isolation (paars).',
- p:['Regels: maximaal 3 lopende leningen per lid · een boek is aan één lid tegelijk uitgeleend','Stack: Java 25, Spring Boot 4.1, één Maven-project, PostgreSQL via Testcontainers, Flyway, ArchUnit, Spotless, CI op GitHub Actions','Backend af: 3 endpoints, 42 tests. De Vue-frontend is (nog) niet gebouwd','Stopcontact = een vastgelegde vorm. Stekker = iets wat zich daaraan aanpast','Zoom vrij met scroll en slepen: hoe dichter je erop zit, hoe meer detail er verschijnt'],
+ p:['Regels: maximaal 3 lopende leningen per lid · een boek is aan één lid tegelijk uitgeleend','Stack: Java 25, Spring Boot 4.1, één Maven-project, PostgreSQL via Testcontainers, Flyway, ArchUnit, Spotless, CI op GitHub Actions','Backend: 3 endpoints, 42 tests. Frontend: één minimaal Vue-scherm met types uit het contract','Stopcontact = een vastgelegde vorm. Stekker = iets wat zich daaraan aanpast','Zoom vrij met scroll en slepen: hoe dichter je erop zit, hoe meer detail er verschijnt'],
  q:[['Waarom zo klein?','Het assessment gaat over de principes. Met drie endpoints en twee regels kan ik elke keuze verdedigen in plaats van veel code half uit te leggen.'],
     ['Wat is het verschil met een gelaagde architectuur?','Niet de opstelling, wel de richting van de afhankelijkheden. Mijn service hangt af van een interface die het domein zelf bezit, en de database-code hangt af van het domein in plaats van andersom.']],
  ch:[
  {id:'balie', label:'Baliescherm', k:'adapter', region:[70,15,480,260], slot:[120,96,220,62],
-  e:'Consumer · niet gebouwd', t:'Baliescherm',
-  b:'Optioneel: een Vue-app achter de balie, waarin de medewerker leningen registreert namens een lid. Nog niet gebouwd; de map frontend/ is leeg. Hieronder staat het plan. Het scherm zou de consumer van het contract zijn en in het amber stopcontact steken.',
-  p:['Alleen als er tijd over is; bewust niet het zwaartepunt van het assessment','Zou geen businessregels bevatten: de backend beslist, het scherm toont de uitkomst'],
+  e:'Consumer', t:'Baliescherm',
+  b:'Een minimale Vue-app achter de balie (frontend/), waarin de medewerker leningen registreert namens een lid. Het scherm is de consumer van het contract en steekt in het amber stopcontact.',
+  p:['Bewust minimaal: één component (App.vue), geen router, geen store, geen UI-library','Bevat geen businessregels: de backend beslist, het scherm toont de uitkomst','Vite proxyt /api naar de backend op poort 8080, dus geen CORS nodig'],
   q:[['Waarom staat memberId in de request body?','De balie handelt namens het lid en er is geen authenticatie. Bij self-service komt het lid uit de token, anders kan iedereen op naam van een ander lenen.']],
   ch:[
-   {id:'b-ui', t:'Scherm', l:['lid kiezen','lopende leningen','boek lenen','terugbrengen'],
-    b:'Plan: één pagina. De medewerker kiest een lid, ziet diens lopende leningen, leent een boek uit of neemt er een terug.',
-    p:['Een 409 wordt een leesbare melding, met de detail-tekst uit de ProblemDetail','Na elke actie haalt het scherm de lijst opnieuw op: de backend is de bron van waarheid']},
+   {id:'b-ui', t:'Scherm', l:['lid-nummer','lopende leningen','boek lenen','terugbrengen'],
+    b:'Eén pagina. De medewerker vult een lid-nummer in, ziet diens lopende leningen, leent een boek uit of neemt er een terug. Er zijn geen endpoints voor leden en boeken, dus het zijn nummer-velden en geen keuzelijsten.',
+    p:['Een 404, 409 of 400 wordt een leesbare melding, met de detail-tekst uit de ProblemDetail','Na elke actie haalt het scherm de lijst opnieuw op: de backend is de bron van waarheid']},
    {id:'b-types', t:'TS-types', l:['openapi-typescript','backend/…/openapi.yaml','→ src/api/schema.d.ts'],
-    b:'Plan: de TypeScript-types genereren uit hetzelfde contract als de Java-kant, zodat niets met de hand wordt overgetypt.',
-    p:['Verandert het contract, dan geeft de Vue-code een type-fout','Alleen types, geen runtime-client: een gewone fetch is genoeg'],
-    c:'npx openapi-typescript ../backend/src/main/resources/openapi.yaml -o src/api/schema.d.ts'},
-   {id:'b-call', t:'API-call', l:['POST /api/v1/loans','{ memberId, bookId }','→ 201 Loan','→ 409 Problem'],
-    b:'Plan: een gewone fetch, getypeerd met de gegenereerde types.',
-    c:`import type { components } from './schema';
-type Loan = components['schemas']['Loan'];
+    b:'De TypeScript-types worden gegenereerd uit hetzelfde contract als de Java-kant. Niets is met de hand overgetypt. npm run generate draait automatisch vóór dev en build.',
+    p:['Verandert het contract, dan geeft vue-tsc een type-fout en faalt npm run build (ook in CI)','Gegenereerd en niet ingecheckt, net als target/generated-sources aan de backend-kant','Alleen types; openapi-fetch (~6 kB) gebruikt ze voor de aanroepen'],
+    c:`"generate": "openapi-typescript ../backend/src/main/resources/openapi.yaml -o src/api/schema.d.ts",
+"predev": "npm run generate",
+"prebuild": "npm run generate",
+"build": "vue-tsc --noEmit && vite build"`},
+   {id:'b-call', t:'API-call', l:['api.POST(\'/loans\')','{ memberId, bookId }','→ data: Loan','→ error: Problem'],
+    b:'openapi-fetch is een dun laagje over fetch. Pad, body en antwoord worden gecontroleerd tegen de gegenereerde types: een onbekend pad of veld compileert niet.',
+    c:`// src/api/client.ts
+export const api = createClient<paths>({ baseUrl: '/api/v1' });
 
-const res = await fetch('/api/v1/loans', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ memberId, bookId }),
-});
-if (res.status === 409) showProblem(await res.json());
-const loan: Loan = await res.json();`}
+// src/App.vue
+async function lend() {
+  const { error } = await api.POST('/loans', {
+    body: { memberId: memberId.value, bookId: bookId.value },
+  });
+  await load();
+  show(error);
+}`,
+    q:[['Waarom baseUrl /api/v1?','De servers-URL uit het contract zit niet in de paden, net als aan de backend-kant. Daarom staat het versieprefix één keer in de client.']]}
   ]},
  {id:'contract', label:'Contract', k:'contract', region:[150,10,600,290], slot:[452,90,236,94],
   e:'Specified contracts', t:'openapi.yaml',
   b:'Het contract is wat het systeem de buitenwereld belooft: welke endpoints er zijn, wat erin gaat en welke antwoorden eruit kunnen komen. Contract-first: de spec is de bron, de code volgt.',
-  p:['Eén bestand, de bron voor de Java-kant (LoansApi + DTO\'s); later ook voor TypeScript-types','Ook de fouten staan erin: 400, 404 en 409 als ProblemDetail','Geversioneerd: /v1 in het pad en info.version'],
+  p:['Eén bestand, één bron voor Java (LoansApi + DTO\'s) en TypeScript (schema.d.ts)','Ook de fouten staan erin: 400, 404 en 409 als ProblemDetail','Geversioneerd: /v1 in het pad en info.version'],
   q:[['Contract-first of code-first?','Bij code-first volgt de spec uit de code, en niets garandeert dat hij stabiel blijft. Contract-first dwingt af dat de controller het contract volgt: wijkt hij af, dan compileert het niet.'],
      ['Wat is een tolerant reader?','Een consumer die onbekende velden negeert. Daardoor breekt het toevoegen van een veld aan de response niemand.']],
   ch:[

@@ -20,7 +20,7 @@ The contract comes first, and the code follows it:
 ## Consequences
 
 - The controller cannot drift from the contract without a compile error.
-- Consumers can read the contract without reading Java code, and could generate their own client or types from it.
+- Consumers can read the contract without reading Java code, and generate their own client or types from it. Our own Vue frontend does this: `openapi-typescript` generates its types from the same `openapi.yaml`, so a contract change breaks the frontend build too.
 - The generated DTOs differ from the domain model, so the controller maps between them.
 - The contract's `servers: /api/v1` is not part of the generated code, so `LoanController` sets the prefix itself with `@RequestMapping("/api/v1")`.
 - We use OpenAPI 3.0.3 because the generator's 3.1 support is still beta.

@@ -31,6 +31,22 @@ curl localhost:8080/api/v1/members/1/loans
 curl -X POST localhost:8080/api/v1/loans/{loanId}/return
 ```
 
+## Front-desk screen
+
+A minimal Vue 3 screen in `frontend/`: pick a member, see their active loans, lend a book, return a loan. It has no business rules; it shows what the backend decides, including the `detail` of every error.
+
+With the backend running:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Then open `http://localhost:5173`. Vite proxies `/api` to the backend on port 8080, so no CORS setup is needed.
+
+The TypeScript types come from the same contract as the backend: `npm run generate` (run automatically before `dev` and `build`) uses `openapi-typescript` to turn `openapi.yaml` into `src/api/schema.d.ts`, and `openapi-fetch` uses those types for every call. If the contract changes, `npm run build` fails with a type error. The generated file is not committed.
+
 ## Test it
 
 ```bash
@@ -38,7 +54,7 @@ cd backend
 ./mvnw verify
 ```
 
-Runs all 42 tests plus the Spotless format check. This is also what CI runs on every push (GitHub Actions).
+Runs all 42 tests plus the Spotless format check. CI (GitHub Actions) runs this on every push, and also builds the frontend, which type-checks it against the contract.
 
 ## API
 
@@ -92,7 +108,7 @@ The database guarantees one active loan per book with a partial unique index (`U
 
 ## Out of scope
 
-Discussed, not built: authentication (librarians act on behalf of a member, so `memberId` is in the request body), transactions around the use cases, a second bounded context, a v2 of the contract, domain events, renewals and fines, and the optional Vue front-desk screen.
+Discussed, not built: authentication (librarians act on behalf of a member, so `memberId` is in the request body), transactions around the use cases, a second bounded context, a v2 of the contract, domain events, renewals and fines, and frontend tests (the screen has no logic; the type check is its safety net).
 
 ## Docs
 
@@ -103,3 +119,5 @@ Discussed, not built: authentication (librarians act on behalf of a member, so `
 ## Stack
 
 Java 25 · Spring Boot 4.1 (Spring Framework 7, Hibernate 7, Jackson 3) · PostgreSQL 18 · Flyway · OpenAPI Generator · Testcontainers 2 · ArchUnit · Spotless (Palantir Java Format)
+
+Frontend: Vue 3 · Vite · TypeScript · openapi-typescript · openapi-fetch
