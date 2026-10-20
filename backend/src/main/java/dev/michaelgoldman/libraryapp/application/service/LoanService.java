@@ -55,6 +55,9 @@ public class LoanService implements LoanUseCases {
 
     @Override
     public List<Loan> activeLoansOf(MemberId memberId) {
-        throw new UnsupportedOperationException("Not implemented yet");
+        if (!members.exists(memberId)) {
+            throw new MemberNotFoundException(memberId);
+        }
+        return loans.findActiveByMember(memberId);
     }
 }

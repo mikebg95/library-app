@@ -70,4 +70,18 @@ class LoanServiceTest {
 
         assertThatThrownBy(() -> service.borrow(MEMBER, BOOK)).isInstanceOf(BookAlreadyOnLoanException.class);
     }
+
+    @Test
+    void activeLoansOf_whenMemberExists_returnActiveLoans() {
+        Loan loan = loans.save(Loan.start(MEMBER, BOOK, NOW));
+
+        assertThat(service.activeLoansOf(MEMBER)).containsExactly(loan);
+    }
+
+    @Test
+    void activeLoansOf_whenMemberDoesNotExist_throwMemberNotFoundException() {
+        existingMembers.clear();
+
+        assertThatThrownBy(() -> service.activeLoansOf(MEMBER)).isInstanceOf(MemberNotFoundException.class);
+    }
 }
