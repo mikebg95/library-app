@@ -98,6 +98,7 @@
                             <generatorName>spring</generatorName>
                             <apiPackage>dev.michaelgoldman.libraryapp.adapter.in.web.api</apiPackage>
                             <modelPackage>dev.michaelgoldman.libraryapp.adapter.in.web.api.model</modelPackage>
+                            <modelNameSuffix>Dto</modelNameSuffix>
                             <configOptions>
                                 <interfaceOnly>true</interfaceOnly>
                                 <useSpringBoot4>true</useSpringBoot4>

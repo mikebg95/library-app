@@ -1,0 +1,1081 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Bibliotheek-app Architectuur</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: infinite blueprint canvas with semantic zoom (left) + reading panel (right); stacks on phones */
+:root{
+  --bg:#F4F5F9; --surface:#FFFFFF; --canvas:#ECEEF4; --ink:#191C27; --muted:#596079; --line:#D6DAE5; --grid:#D3D7E2;
+  --dom:#4B3FB0; --dom-soft:#ECEAFD; --dom-ink:#2B237A;
+  --ct:#A2560B; --ct-soft:#FBEEDB; --ct-ink:#663505;
+  --ad:#2C5F97; --ad-soft:#DCEAF9; --ad-ink:#11375E;
+  --warn:#B0322F; --warn-soft:#FBE6E5;
+  --font-display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --font-body:"Instrument Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono:"JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#10121A; --surface:#191C26; --canvas:#141720; --ink:#E6E8F1; --muted:#9BA1B6; --line:#2B2F3E; --grid:#262A39;
+  --dom:#A49CF2; --dom-soft:#231F3D; --dom-ink:#DCD8FF;
+  --ct:#E6A250; --ct-soft:#30241A; --ct-ink:#F7DBB6;
+  --ad:#82B2E9; --ad-soft:#172739; --ad-ink:#D3E5F8;
+  --warn:#EF7F7A; --warn-soft:#391F20; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#10121A; --surface:#191C26; --canvas:#141720; --ink:#E6E8F1; --muted:#9BA1B6; --line:#2B2F3E; --grid:#262A39;
+  --dom:#A49CF2; --dom-soft:#231F3D; --dom-ink:#DCD8FF;
+  --ct:#E6A250; --ct-soft:#30241A; --ct-ink:#F7DBB6;
+  --ad:#82B2E9; --ad-soft:#172739; --ad-ink:#D3E5F8;
+  --warn:#EF7F7A; --warn-soft:#391F20; color-scheme:dark}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.55}
+.app{height:100%;display:grid;grid-template-rows:auto auto 1fr}
+header.top{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:12px 18px;border-bottom:1px solid var(--line);background:var(--surface)}
+.brand{font-family:var(--font-display);font-weight:700;font-size:19px;letter-spacing:-.01em;margin-right:auto}
+.brand small{display:block;font-family:var(--font-body);font-weight:400;font-size:12px;color:var(--muted);letter-spacing:0}
+.navbtns{display:flex;align-items:center;gap:6px}
+button{font:inherit;color:inherit}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 11px;font-size:13px;font-weight:500;cursor:pointer}
+.btn:hover{border-color:var(--muted)}
+.btn:focus-visible,.pill:focus-visible,.crumb:focus-visible{outline:2px solid var(--dom);outline-offset:2px}
+.btn[disabled]{opacity:.4;cursor:default}
+.count{font-variant-numeric:tabular-nums;font-size:13px;color:var(--muted);min-width:60px;text-align:center}
+.pills{display:flex;gap:6px;overflow-x:auto;padding:8px 18px;border-bottom:1px solid var(--line);background:var(--surface);scrollbar-width:thin}
+.pill{flex:none;border:1px solid var(--line);background:transparent;border-radius:999px;padding:4px 11px;font-size:12.5px;cursor:pointer;white-space:nowrap;color:var(--muted)}
+.pill .dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;vertical-align:1px;background:var(--muted)}
+.pill.on{color:var(--ink);border-color:var(--ink);font-weight:600}
+.k-contract .dot{background:var(--ct)} .k-domain .dot{background:var(--dom)} .k-adapter .dot{background:var(--ad)} .k-warn .dot{background:var(--warn)} .k-quality .dot{background:var(--ink)}
+main{display:grid;grid-template-columns:minmax(0,1fr) 420px;min-height:0}
+.stage{position:relative;min-height:0;background-color:var(--canvas);background-image:radial-gradient(var(--grid) 1px,transparent 1.2px);background-size:22px 22px;overflow:hidden}
+.stage svg{width:100%;height:100%;display:block;touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none}
+.stage svg.dragging{cursor:grabbing}
+.crumbs{position:absolute;left:14px;top:12px;display:flex;flex-wrap:wrap;gap:4px;align-items:center;font-size:12.5px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:4px 8px;max-width:calc(100% - 28px)}
+.crumb{background:none;border:0;padding:2px 4px;cursor:pointer;color:var(--muted);border-radius:4px}
+.crumb.cur{color:var(--ink);font-weight:600;cursor:default}
+.sep{color:var(--muted)}
+.zoomctl{position:absolute;left:14px;bottom:12px;display:flex;gap:4px}
+.zoomctl .btn{min-width:34px;padding:5px 9px}
+.hint{position:absolute;right:14px;bottom:12px;font-size:12px;color:var(--muted);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:4px 9px}
+aside.panel{border-left:1px solid var(--line);background:var(--surface);overflow-y:auto;padding:22px 24px 40px;min-width:0}
+.eyebrow{display:inline-flex;align-items:center;font-size:11.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;padding:3px 9px;border-radius:999px}
+.eyebrow.k-contract{background:var(--ct-soft);color:var(--ct-ink)}
+.eyebrow.k-domain{background:var(--dom-soft);color:var(--dom-ink)}
+.eyebrow.k-adapter{background:var(--ad-soft);color:var(--ad-ink)}
+.eyebrow.k-warn{background:var(--warn-soft);color:var(--warn)}
+.eyebrow.k-quality{background:var(--canvas);color:var(--ink);border:1px solid var(--line)}
+.panel h2{font-family:var(--font-display);font-weight:700;font-size:28px;line-height:1.1;letter-spacing:-.015em;margin:12px 0 10px;text-wrap:balance;overflow-wrap:anywhere}
+.panel p{margin:0 0 14px;max-width:62ch}
+.panel h3{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:22px 0 8px;font-weight:600}
+.panel ul{margin:0;padding-left:18px;display:grid;gap:6px}
+.panel li::marker{color:var(--muted)}
+.panel code.inl{font-family:var(--font-mono);font-size:.88em}
+pre{font-family:var(--font-mono);font-size:12px;line-height:1.55;background:var(--canvas);border:1px solid var(--line);border-radius:8px;padding:12px 14px;overflow-x:auto;margin:0;white-space:pre}
+details{border-top:1px solid var(--line);padding:9px 0}
+details:last-of-type{border-bottom:1px solid var(--line)}
+summary{cursor:pointer;font-weight:600;list-style:none;display:flex;gap:8px}
+summary::-webkit-details-marker{display:none}
+summary::before{content:"+";color:var(--muted);font-family:var(--font-mono);width:12px;flex:none}
+details[open] summary::before{content:"–"}
+details p{margin:8px 0 2px 20px;color:var(--muted)}
+.children{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.up{margin-top:22px;font-size:13px}
+/* svg */
+svg text{font-family:var(--font-body);fill:var(--ink)}
+.t-h{font-weight:600;font-size:15px}
+.t-s{font-size:10.5px;font-style:italic;fill:var(--muted)}
+.t-b{font-size:11.5px}
+.ad .shape,.k-ad>.shape{fill:var(--ad-soft);stroke:var(--ad)}
+.ad text{fill:var(--ad-ink)} .ad .t-s{fill:var(--ad)}
+.ct .shape,.k-ct>.shape{fill:var(--ct-soft);stroke:var(--ct)}
+.ct text{fill:var(--ct-ink)} .ct .t-s{fill:var(--ct)}
+.dm .shape,.k-dm>.shape{fill:var(--surface);stroke:var(--dom)}
+.dm text{fill:var(--dom-ink)} .dm .t-s{fill:var(--dom)}
+.wr .shape,.k-wr>.shape{fill:var(--warn-soft);stroke:var(--warn)}
+.wr text{fill:var(--warn)}
+.ql .shape,.k-ql>.shape{fill:var(--surface);stroke:var(--muted)}
+.shape{stroke-width:1.4;vector-effect:non-scaling-stroke}
+.k-ad>text{fill:var(--ad-ink)} .k-ct>text{fill:var(--ct-ink)} .k-dm>text{fill:var(--dom-ink)} .k-wr>text{fill:var(--warn)} .k-ql>text{fill:var(--ink)}
+.gn>.shape{fill-opacity:.9}
+.gl text{font-family:var(--font-mono)}
+.ghost{opacity:.6}
+.hex{fill:var(--dom-soft);stroke:var(--dom);stroke-width:2;vector-effect:non-scaling-stroke}
+.bound{fill:none;stroke:var(--muted);stroke-width:1.4;stroke-dasharray:9 6;vector-effect:non-scaling-stroke}
+.sock-d{fill:var(--dom)} .sock-c{fill:var(--ct)} .hole-d{fill:var(--dom-soft)} .hole-c{fill:var(--ct-soft)}
+.prong{fill:var(--ad)}
+.wire{fill:none;stroke:var(--muted);stroke-width:1.4}
+.wire-c{fill:none;stroke:var(--ct);stroke-width:1.4;stroke-dasharray:5 4}
+.wire-e{fill:none;stroke:var(--dom);stroke-width:1.4;stroke-dasharray:6 4}
+.hit{cursor:pointer}
+.hit:hover>.shape,.hit.hexwrap:hover .hex{stroke-width:2.6}
+.sel>.shape,.sel.hexwrap .hex{stroke-width:3}
+.lod{opacity:0;pointer-events:none;transition:opacity .3s ease}
+.lod.on{opacity:1;pointer-events:auto}
+.sum{transition:opacity .3s ease}
+.sum.off{opacity:0}
+@media (prefers-reduced-motion: reduce){.lod,.sum{transition:none}}
+@media (max-width:880px){
+  .app{height:auto;min-height:100%}
+  main{grid-template-columns:1fr}
+  .stage{height:58vh}
+  aside.panel{border-left:0;border-top:1px solid var(--line);overflow:visible}
+  .hint{display:none}
+  .panel h2{font-size:24px}
+}
+</style>
+
+<div class="app">
+  <header class="top">
+    <div class="brand">Bibliotheek-app<small>Specified contracts &amp; domain isolation · Flock-assessment</small></div>
+    <div class="navbtns">
+      <button class="btn" id="btn-overview" type="button">Overzicht</button>
+      <button class="btn" id="btn-prev" type="button" aria-label="Vorige stap">←</button>
+      <span class="count" id="count">1 / 1</span>
+      <button class="btn" id="btn-next" type="button" aria-label="Volgende stap">→</button>
+    </div>
+  </header>
+  <nav class="pills" id="pills" aria-label="Onderdelen"></nav>
+  <main>
+    <div class="stage" id="stage">
+      <svg id="world" viewBox="0 0 1600 1040" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Inzoombaar architectuurdiagram van de bibliotheek-app">
+        <defs>
+          <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M1 1L9 5L1 9Z" style="fill:var(--muted)"/></marker>
+          <marker id="arc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M1 1L9 5L1 9Z" style="fill:var(--ct)"/></marker>
+          <marker id="are" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M1 1L9 5L1 9Z" style="fill:var(--dom)"/></marker>
+        </defs>
+        <rect x="-4000" y="-4000" width="10000" height="10000" fill="transparent"/>
+
+        <rect class="bound" x="60" y="230" width="1250" height="600" rx="10"/>
+        <text x="80" y="805" style="font-weight:600;font-size:13px;fill:var(--muted)">API-applicatie</text>
+        <text x="80" y="820" style="font-size:10px;fill:var(--muted)">[Container: Java 25 · Spring Boot 4 · Maven]</text>
+
+        <g class="hit ad" data-node="balie" tabindex="0" role="button" aria-label="Baliescherm">
+          <rect class="shape" x="110" y="40" width="240" height="125" rx="10"/>
+          <text class="t-h" x="230" y="70" text-anchor="middle">Baliescherm</text>
+          <text class="t-s" x="230" y="87" text-anchor="middle">[Container: Vue SPA]</text>
+          <text class="t-b sum" data-for="balie" x="230" y="122" text-anchor="middle">gebruikt gegenereerde TS-types</text>
+        </g>
+        <rect class="prong" x="213" y="165" width="10" height="63" rx="2"/>
+        <rect class="prong" x="237" y="165" width="10" height="63" rx="2"/>
+
+        <g class="hit ct" data-node="contract" tabindex="0" role="button" aria-label="Contract openapi.yaml">
+          <path class="shape" d="M440 30 H680 L700 50 V190 H440 Z"/>
+          <path d="M680 30 V50 H700" style="fill:none;stroke:var(--ct);stroke-width:1.4"/>
+          <text class="t-h" x="570" y="62" text-anchor="middle">openapi.yaml</text>
+          <text class="t-s" x="570" y="79" text-anchor="middle">[Specified contract · v1]</text>
+          <text class="t-b sum" data-for="contract" x="570" y="118" text-anchor="middle">3 endpoints · fouten als Problem</text>
+          <text class="t-b sum" data-for="contract" x="570" y="136" text-anchor="middle">genereert Java en TypeScript</text>
+          <rect class="sock-c" x="196" y="216" width="68" height="28" rx="6"/>
+          <circle class="hole-c" cx="218" cy="230" r="5.5"/><circle class="hole-c" cx="242" cy="230" r="5.5"/>
+          <text x="276" y="258" style="font-weight:600;font-size:12px;fill:var(--ct)">HTTP-contract</text>
+          <text x="276" y="273" style="font-size:10px;font-style:italic;fill:var(--ct)">[specified contract]</text>
+        </g>
+        <path class="wire-c" d="M440 100 L356 100" marker-end="url(#arc)"/>
+        <text x="398" y="92" text-anchor="middle" style="font-size:9.5px;fill:var(--ct)">genereert</text>
+        <path class="wire-c" d="M500 190 L500 330 L330 330 L330 366" marker-end="url(#arc)"/>
+        <text x="508" y="252" style="font-size:9.5px;fill:var(--ct)">genereert LoansApi + DTO's</text>
+        <path class="wire" d="M230 244 L230 366" marker-end="url(#ar)"/>
+        <text x="220" y="312" text-anchor="end" style="font-size:10.5px;fill:var(--muted)">JSON/HTTPS</text>
+
+        <g class="hit ad" data-node="inbound" tabindex="0" role="button" aria-label="LoansController">
+          <rect class="shape" x="100" y="370" width="300" height="140" rx="10"/>
+          <text class="t-h" x="250" y="398" text-anchor="middle">LoansController</text>
+          <text class="t-s" x="250" y="414" text-anchor="middle">[Component: Spring MVC · inbound adapter]</text>
+          <text class="t-b sum" data-for="inbound" x="250" y="452" text-anchor="middle">implements LoansApi (gegenereerd)</text>
+          <text class="t-b sum" data-for="inbound" x="250" y="470" text-anchor="middle">roept LoanUseCases aan</text>
+          <rect class="prong" x="400" y="464" width="171" height="12" rx="2"/>
+          <rect class="prong" x="400" y="490" width="171" height="12" rx="2"/>
+        </g>
+        <path class="wire" d="M250 510 L250 526" marker-end="url(#ar)"/>
+        <g class="hit ad" data-node="handler" tabindex="0" role="button" aria-label="ApiExceptionHandler">
+          <rect class="shape" x="100" y="530" width="300" height="95" rx="10"/>
+          <text class="t-h" x="250" y="556" text-anchor="middle">ApiExceptionHandler</text>
+          <text class="t-s" x="250" y="572" text-anchor="middle">[@RestControllerAdvice]</text>
+          <text class="t-b sum" data-for="handler" x="250" y="602" text-anchor="middle">domeinfout → ProblemDetail 404 / 409</text>
+        </g>
+        <g class="hit ad" data-node="wiring" tabindex="0" role="button" aria-label="Wiring en transacties">
+          <rect class="shape" x="100" y="650" width="300" height="135" rx="10"/>
+          <text class="t-h" x="250" y="676" text-anchor="middle">config</text>
+          <text class="t-s" x="250" y="692" text-anchor="middle">[@Configuration · wiring]</text>
+          <text class="t-b sum" data-for="wiring" x="250" y="728" text-anchor="middle">beans · Clock</text>
+          <text class="t-b sum" data-for="wiring" x="250" y="746" text-anchor="middle">transacties: nog te kiezen</text>
+        </g>
+
+        <g class="hit hexwrap" data-node="domain" tabindex="0" role="button" aria-label="Domein-kern">
+          <polygon class="hex" points="800,260 1025,390 1025,650 800,780 575,650 575,390"/>
+          <text x="800" y="318" text-anchor="middle" style="font-family:var(--font-display);font-weight:700;font-size:17px;fill:var(--dom-ink)">domain + application</text>
+          <text x="800" y="334" text-anchor="middle" style="font-size:10.5px;fill:var(--dom)">[packages · pure Java · geen Spring]</text>
+          <text x="800" y="712" text-anchor="middle" style="font-size:11.5px;fill:var(--dom)">alle business logic</text>
+        </g>
+        <g class="hit dm" data-node="service" tabindex="0" role="button" aria-label="LoanService">
+          <rect class="shape" x="700" y="345" width="200" height="100" rx="9"/>
+          <text class="t-h" x="800" y="367" text-anchor="middle">LoanService</text>
+          <text class="t-s" x="800" y="383" text-anchor="middle">[plain Java · use cases]</text>
+          <text class="t-b sum" data-for="service" x="800" y="406" text-anchor="middle">implements LoanUseCases</text>
+          <text class="t-b sum" data-for="service" x="800" y="424" text-anchor="middle">max 3 · boek vrij · Clock</text>
+        </g>
+        <path class="wire" d="M800 445 L800 461" marker-end="url(#ar)"/>
+        <g class="hit dm" data-node="model" tabindex="0" role="button" aria-label="Domeinmodel">
+          <rect class="shape" x="700" y="465" width="200" height="90" rx="9"/>
+          <text class="t-h" x="800" y="486" text-anchor="middle">Domeinmodel</text>
+          <text class="t-b sum" data-for="model" x="800" y="514" text-anchor="middle">Loan · ids</text>
+          <text class="t-b sum" data-for="model" x="800" y="532" text-anchor="middle">exceptions</text>
+        </g>
+        <g class="hit" data-node="inport" tabindex="0" role="button" aria-label="Inbound port LoanUseCases">
+          <rect class="sock-d shape" x="560" y="455" width="30" height="56" rx="6" style="stroke:none"/>
+          <circle class="hole-d" cx="575" cy="470" r="5.5"/><circle class="hole-d" cx="575" cy="496" r="5.5"/>
+          <text x="600" y="538" style="font-weight:600;font-size:12px;fill:var(--dom-ink)">LoanUseCases</text>
+          <text x="600" y="553" style="font-size:10px;font-style:italic;fill:var(--dom)">[inbound port]</text>
+        </g>
+        <path class="wire" d="M594 483 L640 483 L640 390 L696 390" marker-end="url(#ar)"/>
+        <g class="hit" data-node="outport" tabindex="0" role="button" aria-label="Outbound ports">
+          <rect class="sock-d shape" x="1010" y="455" width="30" height="56" rx="6" style="stroke:none"/>
+          <circle class="hole-d" cx="1025" cy="470" r="5.5"/><circle class="hole-d" cx="1025" cy="496" r="5.5"/>
+          <text x="1000" y="538" text-anchor="end" style="font-weight:600;font-size:12px;fill:var(--dom-ink)">Repositories</text>
+          <text x="1000" y="553" text-anchor="end" style="font-size:10px;font-style:italic;fill:var(--dom)">[outbound ports]</text>
+        </g>
+        <path class="wire" d="M900 390 L960 390 L960 483 L1006 483" marker-end="url(#ar)"/>
+
+        <g class="hit ad" data-node="outbound" tabindex="0" role="button" aria-label="JpaLoanRepositoryAdapter">
+          <rect class="prong" x="1029" y="464" width="51" height="12" rx="2"/>
+          <rect class="prong" x="1029" y="490" width="51" height="12" rx="2"/>
+          <rect class="shape" x="1080" y="440" width="215" height="160" rx="10"/>
+          <text class="t-h" x="1187" y="465" text-anchor="middle">JpaLoanRepository</text>
+          <text class="t-h" x="1187" y="482" text-anchor="middle">Adapter</text>
+          <text class="t-s" x="1187" y="498" text-anchor="middle">[Spring Data JPA · outbound]</text>
+          <text class="t-b sum" data-for="outbound" x="1187" y="540" text-anchor="middle">implements de repository-ports</text>
+          <text class="t-b sum" data-for="outbound" x="1187" y="558" text-anchor="middle">+ member/book-adapters</text>
+        </g>
+        <path class="wire" d="M1187 600 L1187 856" marker-end="url(#ar)"/>
+        <text x="1197" y="730" style="font-size:10.5px;fill:var(--muted)">JPA/JDBC</text>
+
+        <path class="wire-e ghost" d="M945 344 L1336 384" marker-end="url(#are)"/>
+        <text x="1150" y="352" text-anchor="middle" style="font-weight:600;font-size:11px;fill:var(--dom)" class="ghost">BookReturned</text>
+        <text x="1150" y="388" text-anchor="middle" style="font-size:9.5px;font-style:italic;fill:var(--dom)" class="ghost">[domain event · later]</text>
+        <g class="hit ql ghost" data-node="events" tabindex="0" role="button" aria-label="Event-driven">
+          <rect class="shape" x="1340" y="300" width="240" height="170" rx="10" style="stroke-dasharray:6 4"/>
+          <text class="t-h" x="1460" y="326" text-anchor="middle">Event-driven</text>
+          <text class="t-s" x="1460" y="342" text-anchor="middle">[niet gebouwd · wel doordacht]</text>
+          <text class="t-b sum" data-for="events" x="1460" y="390" text-anchor="middle">Reservations luistert</text>
+          <text class="t-b sum" data-for="events" x="1460" y="408" text-anchor="middle">naar BookReturned</text>
+        </g>
+
+        <g class="hit ad" data-node="database" tabindex="0" role="button" aria-label="PostgreSQL">
+          <path class="shape" d="M1090 872 L1090 998 A95 12 0 0 0 1280 998 L1280 872"/>
+          <ellipse class="shape" cx="1185" cy="872" rx="95" ry="12"/>
+          <text class="t-h" x="1185" y="902" text-anchor="middle">PostgreSQL</text>
+          <text class="t-s" x="1185" y="918" text-anchor="middle">[Testcontainers · Flyway]</text>
+          <text class="t-b sum" data-for="database" x="1185" y="955" text-anchor="middle">member · book · loan</text>
+        </g>
+
+        <path class="wire" d="M1318 935 L1284 935" style="stroke:var(--warn);stroke-dasharray:4 3"/>
+        <g class="hit wr" data-node="race" tabindex="0" role="button" aria-label="Twee balies, één boek">
+          <rect class="shape" x="1320" y="860" width="250" height="150" rx="10"/>
+          <text class="t-h" x="1445" y="886" text-anchor="middle">Twee balies, één boek</text>
+          <text class="t-b sum" data-for="race" x="1445" y="940" text-anchor="middle">race condition → 409</text>
+        </g>
+
+        <g class="hit ql" data-node="tests" tabindex="0" role="button" aria-label="Teststrategie">
+          <rect class="shape" x="60" y="860" width="640" height="150" rx="10" style="stroke-dasharray:6 4"/>
+          <text x="80" y="882" style="font-weight:600;font-size:13px;fill:var(--ink)">Teststrategie</text>
+        </g>
+
+        <g class="hit ql" data-node="archunit" tabindex="0" role="button" aria-label="ArchUnit">
+          <rect class="shape" x="720" y="860" width="340" height="150" rx="10"/>
+          <text class="t-h" x="890" y="884" text-anchor="middle">ArchUnit</text>
+          <text class="t-s" x="890" y="900" text-anchor="middle">[architectuurtests]</text>
+          <text class="t-b sum" data-for="archunit" x="890" y="950" text-anchor="middle">4 regels: kern · richting · contract · entities</text>
+        </g>
+      </svg>
+      <div class="crumbs" id="crumbs" aria-label="Kruimelpad"></div>
+      <div class="zoomctl">
+        <button class="btn" id="z-in" type="button" aria-label="Inzoomen">+</button>
+        <button class="btn" id="z-out" type="button" aria-label="Uitzoomen">−</button>
+        <button class="btn" id="z-fit" type="button">Passend</button>
+      </div>
+      <div class="hint">Scroll = zoom · slepen = verschuiven · klik = inzoomen · Esc = terug</div>
+    </div>
+    <aside class="panel" id="panel" aria-live="polite"></aside>
+  </main>
+</div>
+
+<script>
+/* ---------- Content tree ----------
+   t title · s subtitle · k kind · e eyebrow · b body · p points · c code · q qa · l lines (shown in box) · ch children
+   region (hand-drawn nodes) · slot = area in which children/lines are drawn */
+const TREE = {id:'overview', label:'Overzicht', k:'quality', region:[0,0,1600,1040],
+ e:'Overzicht', t:'Bibliotheek-app',
+ b:'Een baliescherm voor bibliotheekmedewerkers: een boek uitlenen, terugnemen en de lopende leningen van een lid bekijken. Bewust klein, zodat elke regel uit te leggen is. Twee pillars van Flock staan centraal: specified contracts (amber) en domain isolation (paars).',
+ p:['Regels: maximaal 3 lopende leningen per lid · een boek is aan één lid tegelijk uitgeleend','Stack: Java 25, Spring Boot 4.1, één Maven-project, PostgreSQL via Testcontainers, Flyway','Stopcontact = een vastgelegde vorm. Stekker = iets wat zich daaraan aanpast','Zoom vrij met scroll en slepen: hoe dichter je erop zit, hoe meer detail er verschijnt'],
+ q:[['Waarom zo klein?','Het assessment gaat over de principes. Met drie endpoints en twee regels kan ik elke keuze verdedigen in plaats van veel code half uit te leggen.'],
+    ['Wat is het verschil met een gelaagde architectuur?','Niet de opstelling, wel de richting van de afhankelijkheden. Mijn service hangt af van een interface die het domein zelf bezit, en de database-code hangt af van het domein in plaats van andersom.']],
+ ch:[
+ {id:'balie', label:'Baliescherm', k:'adapter', region:[70,15,480,260], slot:[120,96,220,62],
+  e:'Consumer', t:'Baliescherm',
+  b:'De Vue-app achter de balie. De medewerker registreert leningen namens een lid. Het scherm is de consumer van het contract en steekt in het amber stopcontact.',
+  p:['Gevibecoded; bewust niet het zwaartepunt van het assessment','Bevat geen businessregels: de backend beslist, het scherm toont de uitkomst'],
+  q:[['Waarom staat memberId in de request body?','De balie handelt namens het lid en er is geen authenticatie. Bij self-service komt het lid uit de token, anders kan iedereen op naam van een ander lenen.']],
+  ch:[
+   {id:'b-ui', t:'Scherm', l:['lid kiezen','lopende leningen','boek lenen','terugbrengen'],
+    b:'Eén pagina: de medewerker kiest een lid, ziet diens lopende leningen, leent een boek uit of neemt er een terug.',
+    p:['Een 409 wordt een leesbare melding, met de detail-tekst uit de ProblemDetail','Na elke actie haalt het scherm de lijst opnieuw op: de backend is de bron van waarheid']},
+   {id:'b-types', t:'TS-types', l:['openapi-typescript','backend/…/openapi.yaml','→ src/api/schema.d.ts'],
+    b:'De TypeScript-types worden gegenereerd uit hetzelfde contract als de Java-kant. Niets is met de hand overgetypt.',
+    p:['Verandert het contract, dan geeft de Vue-code een type-fout','Alleen types, geen runtime-client: een gewone fetch is genoeg'],
+    c:'npx openapi-typescript ../backend/src/main/resources/openapi.yaml -o src/api/schema.d.ts'},
+   {id:'b-call', t:'API-call', l:['POST /api/v1/loans','{ memberId, bookId }','→ 201 Loan','→ 409 Problem'],
+    b:'Een gewone fetch, getypeerd met de gegenereerde types.',
+    c:`import type { components } from './schema';
+type Loan = components['schemas']['Loan'];
+
+const res = await fetch('/api/v1/loans', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ memberId, bookId }),
+});
+if (res.status === 409) showProblem(await res.json());
+const loan: Loan = await res.json();`}
+  ]},
+ {id:'contract', label:'Contract', k:'contract', region:[150,10,600,290], slot:[452,90,236,94],
+  e:'Specified contracts', t:'openapi.yaml',
+  b:'Het contract is wat het systeem de buitenwereld belooft: welke endpoints er zijn, wat erin gaat en welke antwoorden eruit kunnen komen. Contract-first: de spec is de bron, de code volgt.',
+  p:['Eén bestand, één bron voor Java (LoansApi + DTO\'s) en TypeScript','Ook de fouten staan erin: 400, 404 en 409 als ProblemDetail','Geversioneerd: /v1 in het pad en info.version'],
+  q:[['Contract-first of code-first?','Bij code-first volgt de spec uit de code, en niets garandeert dat hij stabiel blijft. Contract-first dwingt af dat de controller het contract volgt: wijkt hij af, dan compileert het niet.'],
+     ['Wat is een tolerant reader?','Een consumer die onbekende velden negeert. Daardoor breekt het toevoegen van een veld aan de response niemand.']],
+  ch:[
+   {id:'c-paths', t:'Paths', s:'3 operaties', l:['POST /loans → 201','POST /loans/{id}/return → 200','GET /members/{id}/loans → 200'],
+    b:'Drie operaties. De operationId wordt de methodenaam in de gegenereerde LoansApi.',
+    p:['operationId: borrowBook → LoansApi.borrowBook(…)','Lenen is een POST op de collectie: er ontstaat een nieuwe resource (201 + Location)','Terugbrengen is een expliciete actie: POST /{id}/return'],
+    q:[['Waarom POST /return en geen PATCH met een status?','Terugbrengen is een domeinhandeling met een regel (niet twee keer), geen vrije statuswijziging. Een expliciete actie houdt de taal van het domein in de API.']]},
+   {id:'c-schemas', t:'Schemas', s:'BorrowRequest · Loan', l:['BorrowRequest { memberId*, bookId* }','Loan { id, memberId, bookId,','  borrowedAt, returnedAt? }'],
+    b:'De vorm van de data op de draad. Dit is niet je domeinmodel: het is wat je belooft.',
+    p:['required wordt @NotNull, minimum: 1 wordt @Min(1) op de DTO','returnedAt is optioneel: leeg zolang de lening loopt','Tijden als ISO-8601 (format: date-time)'],
+    c:`components:
+  schemas:
+    BorrowRequest:
+      type: object
+      required: [memberId, bookId]
+      properties:
+        memberId: { type: integer, format: int64, minimum: 1 }
+        bookId:   { type: integer, format: int64, minimum: 1 }
+    Loan:
+      type: object
+      required: [id, memberId, bookId, borrowedAt]
+      properties:
+        id:         { type: string, format: uuid }
+        memberId:   { type: integer, format: int64 }
+        bookId:     { type: integer, format: int64 }
+        borrowedAt: { type: string, format: date-time }
+        returnedAt: { type: string, format: date-time }`,
+    q:[['Waarom is het API-model niet gelijk aan het domeinmodel?','Het contract moet stabiel blijven voor consumers; het domein moet vrij kunnen veranderen. Gescheiden modellen met mapping geven beide die vrijheid.']]},
+   {id:'c-errors', t:'Problem', s:'RFC 9457', l:['400 ongeldige input','404 lid/boek/lening onbekend','409 max · uitgeleend · terug'],
+    b:'Ook fouten zijn onderdeel van de belofte. Elke fout heeft dezelfde vorm: application/problem+json.',
+    p:['Velden: type, title, status, detail','Spring heeft ProblemDetail ingebouwd'],
+    q:[['Waarom fouten in het contract?','Een consumer moet weten welke fouten kunnen komen en hoe ze eruitzien. Een nieuwe foutcode die niet in de spec staat is een stille breaking change.']]},
+   {id:'c-gen', t:'Generator', s:'openapi-generator', l:['generatorName: spring','interfaceOnly: true','skipDefaultInterface: true','useSpringBoot4: true'],
+    b:'De Maven-plugin genereert bij elke build de interface en de DTO\'s in target/generated-sources. Niet inchecken: het contract is de bron.',
+    p:['interfaceOnly: alleen interfaces, geen controller-stubs','skipDefaultInterface: mist er een endpoint in de controller, dan compileert het niet','documentationProvider, annotationLibrary en openApiNullable uit: geen extra libraries nodig'],
+    c:`<plugin>
+  <groupId>org.openapitools</groupId>
+  <artifactId>openapi-generator-maven-plugin</artifactId>
+  <executions><execution><goals><goal>generate</goal></goals>
+    <configuration>
+      <inputSpec>\${project.basedir}/src/main/resources/openapi.yaml</inputSpec>
+      <generatorName>spring</generatorName>
+      <apiPackage>dev.michaelgoldman.libraryapp.adapter.in.web.api</apiPackage>
+      <modelPackage>dev.michaelgoldman.libraryapp.adapter.in.web.api.model</modelPackage>
+      <modelNameSuffix>Dto</modelNameSuffix>
+      <configOptions>
+        <interfaceOnly>true</interfaceOnly>
+        <useSpringBoot4>true</useSpringBoot4>
+        <useTags>true</useTags>
+        <skipDefaultInterface>true</skipDefaultInterface>
+        <documentationProvider>none</documentationProvider>
+        <annotationLibrary>none</annotationLibrary>
+        <openApiNullable>false</openApiNullable>
+      </configOptions>
+    </configuration>
+  </execution></executions>
+</plugin>`,
+    q:[['Waarom de gegenereerde code niet inchecken?','Dan kan hij uit de pas lopen met het contract. Genereren tijdens de build garandeert dat code en spec altijd overeenkomen.']]},
+   {id:'c-version', t:'Versie', s:'v1', l:['pad: /api/v1/…','info.version: 1.0.0','breaking → /v2 naast /v1'],
+    b:'Een contract heeft altijd een versie, zodat consumers weten waar ze op bouwen.',
+    p:['Non-breaking: nieuw optioneel veld, nieuw endpoint','Breaking: veld weg, hernoemd of ander type, nieuw verplicht veld, nieuwe foutcode','Breaking uitrollen: v2 naast v1, v1 deprecaten met einddatum, gebruik per consumer meten, dan uitzetten'],
+    q:[['Wat zegt Hyrum\'s Law hier?','Met genoeg consumers wordt elk waarneembaar gedrag ergens op gebouwd. Wat ertoe doet, leg je daarom expliciet vast in het contract, inclusief defaults.']]}
+  ]},
+ {id:'inbound', label:'Controller', k:'adapter', region:[90,355,540,170], slot:[110,424,280,80],
+  e:'Inbound adapter', t:'LoansController',
+  b:'De stekker aan de voorkant. Vertaalt HTTP en JSON naar een aanroep van de inbound port, en het resultaat weer terug. Hier zit vertaallogica, geen business logic.',
+  p:['implements LoansApi (gegenereerd): afwijken van het contract compileert niet','Hangt af van LoanUseCases, niet van LoanService','Eén methode per operatie, elk vier regels: valideren, vertalen, aanroepen, terugvertalen'],
+  q:[['Wat is het verschil tussen LoansApi en LoanUseCases?','LoansApi is het HTTP-contract met DTO\'s, gegenereerd uit openapi.yaml. LoanUseCases is de port van het domein, met domeinobjecten in domeintaal. De controller vertaalt tussen die twee.']],
+  ch:[
+   {id:'i-borrow', t:'borrowBook', s:'POST /loans → 201', l:['@Valid BorrowRequestDto','→ MemberId, BookId','loans.borrow(…)','→ 201 + Location'],
+    b:'Eén methode per operatie uit het contract. Vier stappen en geen enkele regel.',
+    c:`@Override
+public ResponseEntity<LoanDto> borrowBook(BorrowRequestDto request) {
+  var loan = loans.borrow(new MemberId(request.getMemberId()),
+                          new BookId(request.getBookId()));
+  URI location = URI.create("/api/v1/loans/" + loan.id().value());
+  return ResponseEntity.created(location).body(toDto(loan));
+}`,
+    q:[['Waarom een Location-header?','Bij 201 Created hoort waar de nieuwe resource te vinden is. Dat is gewoon REST, en het staat ook in het contract.'],
+       ['Waar zit @Valid?','Op de parameter in de gegenereerde interface (useBeanValidation). Ontbreekt een verplicht veld, dan komt de controller-methode niet eens in actie: Spring geeft 400.']]},
+   {id:'i-return', t:'returnBook', s:'POST /loans/{id}/return', l:['UUID → LoanId','loans.returnBook(id)','→ 200 LoanDto','404 · 409'],
+    b:'Neemt een lening terug. De regel "niet twee keer" zit niet hier maar in Loan zelf.',
+    c:`@Override
+public ResponseEntity<LoanDto> returnBook(UUID loanId) {
+  var loan = loans.returnBook(new LoanId(loanId));
+  return ResponseEntity.ok(toDto(loan));
+}`},
+   {id:'i-list', t:'activeLoansOf', s:'GET /members/{id}/loans', l:['Long → MemberId','loans.activeLoansOf(id)','→ 200 List<LoanDto>'],
+    b:'Geeft de lopende leningen van een lid terug. Een onbekend lid geeft 404, een lid zonder leningen een lege lijst.',
+    q:[['Waarom staat dit onder /members?','De resource is "de leningen van een lid". Het pad drukt die relatie uit.']]},
+   {id:'i-mapper', t:'toDto()', s:'domein → DTO', l:['private methode','in de controller','met de hand geschreven'],
+    b:'Handgeschreven vertaling van de domein-Loan naar de gegenereerde LoanDto. Een private methode in de controller; een aparte mapper-klasse is bij deze paar velden niet nodig.',
+    p:['Gegenereerde klassen krijgen de suffix Dto (modelNameSuffix), dus geen botsing met de domein-Loan'],
+    c:`private static LoanDto toDto(Loan loan) {
+  Instant returnedAt = loan.returnedAt();
+  return new LoanDto()
+      .id(loan.id().value())
+      .memberId(loan.memberId().value())
+      .bookId(loan.bookId().value())
+      .borrowedAt(loan.borrowedAt().atOffset(ZoneOffset.UTC))
+      .returnedAt(returnedAt == null ? null : returnedAt.atOffset(ZoneOffset.UTC));
+}`,
+    q:[['Waarom geen MapStruct?','Bij een handvol velden is handgeschreven mapping sneller te lezen dan de annotaties, en er gebeurt niets onzichtbaars. Bij grote modellen zou ik het heroverwegen.']]}
+  ]},
+ {id:'handler', label:'Foutafhandeling', k:'adapter', region:[90,520,330,115], slot:[110,580,280,38],
+  e:'Inbound adapter · fouten', t:'ApiExceptionHandler',
+  b:'Eén centrale plek die domeinfouten vertaalt naar de responses die het contract belooft. Spring stuurt elke exceptie die uit een controller komt hierheen.',
+  p:['Elke domeinfout is een eigen exception-klasse','Eén @ExceptionHandler voor de 404-fouten, één voor de 409-fouten','Validatiefouten (400) handelt Spring zelf al af als ProblemDetail'],
+  c:`@RestControllerAdvice
+class ApiExceptionHandler {
+
+  @ExceptionHandler({MemberNotFoundException.class, BookNotFoundException.class,
+                     LoanNotFoundException.class})
+  ProblemDetail notFound(RuntimeException e) {
+    return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, e.getMessage());
+  }
+
+  @ExceptionHandler({MaxLoansReachedException.class, BookAlreadyOnLoanException.class,
+                     LoanAlreadyReturnedException.class})
+  ProblemDetail conflict(RuntimeException e) {
+    return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
+  }
+}`,
+  q:[['Waarom geen try/catch in de controller?','Dan herhaal je de vertaling in elke methode. Eén advice houdt de controller schoon en de foutvorm overal gelijk.']],
+  ch:[
+   {id:'h-404', t:'404', s:'Not Found', l:['MemberNotFoundException','BookNotFoundException','LoanNotFoundException'],
+    b:'Iets waar het verzoek naar verwijst bestaat niet.'},
+   {id:'h-409', t:'409', s:'Conflict', l:['MaxLoansReachedException','BookAlreadyOnLoanException','LoanAlreadyReturnedException'],
+    b:'Het verzoek is geldig, maar botst met de huidige toestand.',
+    q:[['Waarom 409 en niet 400 of 422?','400 betekent dat het verzoek zelf fout is. 409 zegt: het verzoek klopt, maar de toestand staat het nu niet toe. Dat past bij een uitgeleend boek of een vol maximum.']]},
+   {id:'h-400', t:'400', s:'Bad Request', l:['veld ontbreekt','geen geldige JSON','door Spring zelf'],
+    b:'Het verzoek is syntactisch fout. Bean Validation op de gegenereerde DTO vangt dit af voordat het domein iets ziet.'}
+  ]},
+ {id:'wiring', label:'Wiring', k:'adapter', region:[90,640,330,155], slot:[110,702,280,76],
+  e:'Domain isolation · wiring', t:'Configuratie en transacties',
+  b:'LoanService heeft geen @Service: de beans worden in het config-package aangemaakt. Hoe de transactie eromheen komt, is nog niet gekozen.',
+  p:['config is de enige plek waar stekkers in stopcontacten gaan (vergelijk AppLayer.kt in Flocks pragmatic-repo)','borrow leest, controleert en slaat op: dat moet in één transactie'],
+  ch:[
+   {id:'w-config', t:'Configuratie', s:'@Configuration', l:['@Bean LoanUseCases','new LoanService(…)'],
+    b:'Bouwt de service op met de juiste adapters.',
+    c:`@Configuration
+class ApplicationConfig {
+  @Bean
+  LoanUseCases loanUseCases(LoanRepository loans, MemberRepository members,
+                            BookRepository books, Clock clock) {
+    return new LoanService(loans, members, books, clock);
+  }
+}`},
+   {id:'w-tx', t:'Transacties', s:'nog te kiezen', l:['optie 1: decorator','optie 2: @Transactional','  op LoanService'],
+    b:'Nog niet besloten. Een decorator (zelfde interface, voegt alleen de transactie toe) houdt LoanService vrij van Spring. @Transactional direct op LoanService is eenvoudiger, maar dan hangt de application-laag af van Spring.',
+    p:['Rollback bij elke RuntimeException, dus ook bij domeinfouten','activeLoansOf kan read-only'],
+    q:[['Waarom niet gewoon @Transactional op LoanService?','Kan, en het is minder code. De prijs is dat de application-laag Spring kent. Dat is de afweging die nog gemaakt moet worden.']]},
+   {id:'w-clock', t:'Clock', s:'@Bean', l:['Clock.systemUTC()','tests: Clock.fixed(…)'],
+    b:'Tijd is ook een afhankelijkheid. Door Clock te injecteren is "nu" in tests vast te zetten.',
+    c:`@Bean
+Clock clock() { return Clock.systemUTC(); }`}
+  ]},
+ {id:'domain', label:'Domein', k:'domain', region:[555,245,490,550],
+  e:'Domain isolation', t:'Kern: domain + application',
+  b:'Alle business logic, in plain Java. Geen Spring, geen JPA, geen JSON. Twee packages: domain (model en exceptions) en application (ports en LoanService). Via ports zegt de kern wat hij aanbiedt en wat hij nodig heeft; de rest van de wereld past zich daaraan aan.',
+  p:['Domeinmodel: objecten met hun eigen regels, geen anemic model','LoanService: use cases en regels die over meerdere objecten gaan','Ubiquitous language: borrow, returnBook, Loan, Member, woorden die een bibliothecaris herkent'],
+  q:[['Wanneer is dit overkill?','Bij pure CRUD zonder regels. Hier zijn er echte regels, en de prijs (drie modellen en mapping) is klein.'],
+     ['Hoe dwing je de grens af?','Alles zit in één Maven-project, dus de compiler houdt Spring niet tegen. ArchUnit-tests maken de build rood als domain of application een framework of adapter gebruikt.']],
+  ch:[
+   {id:'inport', label:'LoanUseCases', k:'domain', region:[555,440,200,190], slot:[598,562,98,48],
+    e:'Port · inbound', t:'LoanUseCases',
+    b:'Het stopcontact aan de voorkant van de kern: wat de applicatie aanbiedt, in domeintaal en met domeinobjecten.',
+    p:['Staat in application/port/in, wordt geïmplementeerd door LoanService','Wordt aangeroepen door de controller','In @WebMvcTest vervangen door een mock'],
+    c:`public interface LoanUseCases {
+  Loan borrow(MemberId memberId, BookId bookId);
+  Loan returnBook(LoanId loanId);
+  List<Loan> activeLoansOf(MemberId memberId);
+}`,
+    q:[['Waarom een interface met maar één implementatie?','Zo heeft de port een naam en kent de controller alleen het stopcontact, niet de implementatie.']],
+    ch:[
+     {id:'ip-borrow', t:'borrow', l:['MemberId, BookId','→ Loan'], b:'Start een nieuwe lening. Kan falen met MemberNotFoundException, BookNotFoundException, MaxLoansReachedException of BookAlreadyOnLoanException.'},
+     {id:'ip-return', t:'returnBook', l:['LoanId','→ Loan'], b:'Sluit een lening af. Kan falen met LoanNotFoundException of LoanAlreadyReturnedException.'},
+     {id:'ip-active', t:'activeLoansOf', l:['MemberId','→ List<Loan>'], b:'Geeft de lopende leningen van een lid. Een onbekend lid geeft MemberNotFoundException.'}
+    ]},
+   {id:'service', label:'LoanService', k:'domain', region:[690,335,220,120], slot:[708,392,184,46],
+    e:'Application · use cases', t:'LoanService',
+    b:'Voert de use cases uit en bewaakt de regels die over meerdere leningen gaan. Plain Java: geen annotaties.',
+    p:['De max-3-regel gaat over de verzameling leningen van een lid, dus die zit hier','Clock wordt meegegeven: borrowedAt is in tests vast te zetten'],
+    c:`public final class LoanService implements LoanUseCases {
+  static final int MAX_ACTIVE_LOANS = 3;
+
+  private final LoanRepository loans;
+  private final MemberRepository members;
+  private final BookRepository books;
+  private final Clock clock;
+  // constructor, borrow, returnBook, activeLoansOf
+}`,
+    ch:[
+     {id:'s-borrow', t:'borrow()', l:['1 lid bestaat?   404','2 boek bestaat?  404','3 < 3 lopend?    409','4 boek vrij?     409','5 start + save'],
+      b:'De volgorde van de checks is bewust: eerst bestaan (404), dan regels (409).',
+      c:`public Loan borrow(MemberId memberId, BookId bookId) {
+  if (!members.exists(memberId)) throw new MemberNotFoundException(memberId);
+  if (!books.exists(bookId))     throw new BookNotFoundException(bookId);
+  if (loans.findActiveByMember(memberId).size() >= MAX_ACTIVE_LOANS)
+    throw new MaxLoansReachedException(memberId);
+  if (loans.isOnLoan(bookId))    throw new BookAlreadyOnLoanException(bookId);
+  return loans.save(Loan.start(memberId, bookId, clock.instant()));
+}`,
+      q:[['Waarom eerst 404 en dan 409?','Een regel toepassen op een lid dat niet bestaat is zinloos. Eerst de identiteit, dan de toestand.'],
+         ['Is de isOnLoan-check genoeg?','Nee. Twee balies kunnen tegelijk door deze check komen. De database-constraint is de echte garantie; deze check geeft een nette fout in het normale geval.']]},
+     {id:'s-return', t:'returnBook()', l:['1 ophalen   404','2 loan.returnBook','  al terug? 409','3 save'],
+      b:'De service haalt op en slaat op. De regel "niet twee keer terugbrengen" zit in Loan zelf.',
+      c:`public Loan returnBook(LoanId loanId) {
+  Loan loan = loans.findById(loanId)
+      .orElseThrow(() -> new LoanNotFoundException(loanId));
+  loan.returnBook(clock.instant());
+  return loans.save(loan);
+}`},
+     {id:'s-active', t:'activeLoansOf()', l:['lid bestaat?  404','findActiveByMember'],
+      b:'Leest alleen. Controleert eerst of het lid bestaat, zodat een onbekend lid een 404 geeft in plaats van een lege lijst.',
+      c:`public List<Loan> activeLoansOf(MemberId memberId) {
+  if (!members.exists(memberId)) throw new MemberNotFoundException(memberId);
+  return loans.findActiveByMember(memberId);
+}`}
+    ]},
+   {id:'model', label:'Domeinmodel', k:'domain', region:[690,455,220,110], slot:[708,498,184,50],
+    e:'Domein · model', t:'Domeinmodel',
+    b:'Objecten met gedrag. Een Loan bewaakt zijn eigen toestand; ids zijn eigen types; elke fout is een eigen exception.',
+    q:[['Waarom niet gewoon de JPA-entity als domeinobject?','Dan lekken persistence-zorgen je regels in: annotaties, een lege constructor, setters en lazy loading. De database bepaalt dan de vorm van je domein.']],
+    ch:[
+     {id:'m-loan', t:'Loan', s:'met levenscyclus', l:['id · memberId · bookId','borrowedAt · returnedAt?','start(m, b, now)','new Loan(…) uit db','returnBook(now)'],
+      b:'Een lening heeft een identiteit en een levenscyclus: lopend, daarna teruggebracht. Toestand verandert alleen via betekenisvolle methodes.',
+      c:`public class Loan {
+  private final LoanId id;
+  private final MemberId memberId;
+  private final BookId bookId;
+  private final Instant borrowedAt;
+  private Instant returnedAt;              // null zolang de lening loopt
+
+  public Loan(LoanId id, MemberId memberId, BookId bookId,
+              Instant borrowedAt, Instant returnedAt) { … }   // bestaande lening
+
+  public static Loan start(MemberId memberId, BookId bookId, Instant now) {
+    return new Loan(LoanId.generate(), memberId, bookId, now, null);
+  }
+
+  public void returnBook(Instant now) {
+    if (!isActive()) throw new LoanAlreadyReturnedException(id);
+    returnedAt = now;
+  }
+
+  public boolean isActive() { return returnedAt == null; }
+
+  // getters: id(), memberId(), bookId(), borrowedAt(), returnedAt()
+}`,
+      q:[['Waarom geen setters?','Toestand verandert alleen via returnBook. Zo kan een Loan nooit in een ongeldige toestand komen.'],
+         ['Waarom een publieke constructor naast start?','start maakt een nieuwe lening met een nieuw id en "nu". De constructor zet een bestaande lening terug zoals hij was, bijvoorbeeld uit de database.'],
+         ['Waarom krijgt Loan "now" mee?','Dan roept Loan zelf geen Instant.now() aan, en kan een test een vaste tijd gebruiken. De service haalt "nu" uit een Clock.']]},
+     {id:'m-ids', t:'Ids', s:'records', l:['LoanId(UUID)','MemberId(long)','BookId(long)'],
+      b:'Ids als eigen types: je kunt een BookId niet per ongeluk doorgeven waar een MemberId hoort.',
+      c:`public record LoanId(UUID value) {
+  public LoanId { Objects.requireNonNull(value, "LoanId must not be null"); }
+  public static LoanId generate() { return new LoanId(UUID.randomUUID()); }
+}
+public record MemberId(long value) {
+  public MemberId { if (value <= 0) throw new IllegalArgumentException("MemberId must be positive"); }
+}
+public record BookId(long value) {
+  public BookId { if (value <= 0) throw new IllegalArgumentException("BookId must be positive"); }
+}`,
+      q:[['Waarom niet gewoon Long?','Type-veiligheid en betekenis. borrow(Long, Long) laat je de argumenten omdraaien; borrow(MemberId, BookId) niet.'],
+         ['Waarom maakt het domein het LoanId en niet de database?','Dan is een Loan vanaf het begin compleet. Je hoeft geen "nog niet opgeslagen" toestand zonder id te modelleren.']]},
+     {id:'m-mb', t:'Leden en boeken', l:['alleen MemberId / BookId','komen uit seed-data'],
+      b:'In de Lending-context zijn leden en boeken referenties. Lending hoeft alleen te weten dat ze bestaan.',
+      p:['Een Catalog-context zou een rijk Book-model hebben: titel, auteur, exemplaren','Bounded context: elk model bevat alleen wat die context nodig heeft']},
+     {id:'m-exc', t:'Exceptions', s:'domain/exception', l:['één klasse per fout','…Exception','extends RuntimeException'],
+      b:'Elke domeinfout is een eigen klasse in domain/exception, met een naam in domeintaal. Pas de handler in de web-adapter koppelt er een statuscode aan.',
+      p:['404: MemberNotFoundException, BookNotFoundException, LoanNotFoundException','409: MaxLoansReachedException, BookAlreadyOnLoanException, LoanAlreadyReturnedException'],
+      c:`public class LoanAlreadyReturnedException extends RuntimeException {
+  public LoanAlreadyReturnedException(LoanId id) {
+    super("Loan " + id.value() + " is already returned");
+  }
+}`,
+      q:[['Waarom een eigen klasse en niet IllegalStateException?','Dan kan de handler niet onderscheiden: een echte bug zou ook als 409 naar buiten gaan. Een eigen klasse zegt precies welke fout een 409 is.'],
+         ['Is een exception geen HTTP-zorg?','Nee: de namen zijn domeintaal (MaxLoansReachedException). Pas de handler in de adapter koppelt er een statuscode aan.']]}
+    ]},
+   {id:'outport', label:'Outbound ports', k:'domain', region:[845,440,200,190], slot:[902,562,98,48],
+    e:'Port · outbound', t:'Outbound ports',
+    b:'De stopcontacten aan de achterkant, in application/port/out: wat de kern nodig heeft, niet hoe het geregeld wordt. Elke port is zo klein als de behoefte.',
+    q:[['Fake of mock?','Een fake gedraagt zich echt: opslaan en terugvinden werkt, dus je test toestand. Een mock stel je per test in en test interacties. Voor domeinregels is een fake eerlijker en minder breekbaar.']],
+    ch:[
+     {id:'o-loan', t:'LoanRepository', l:['findById','findActiveByMember','isOnLoan','save'],
+      b:'De opslag van leningen, in domeintaal.',
+      c:`public interface LoanRepository {
+  Optional<Loan> findById(LoanId id);
+  List<Loan> findActiveByMember(MemberId memberId);
+  boolean isOnLoan(BookId bookId);
+  Loan save(Loan loan);
+}`},
+     {id:'o-member', t:'MemberRepository', l:['exists(MemberId)'],
+      b:'Eén methode, nodig voor de 404. Omdat het maar één methode heeft, kan een test gewoon id -> true meegeven.',
+      c:`public interface MemberRepository {
+  boolean exists(MemberId id);
+}`},
+     {id:'o-book', t:'BookRepository', l:['exists(BookId)'],
+      b:'Hetzelfde voor boeken.'},
+     {id:'o-fake', t:'InMemory fake', s:'alleen in tests', l:['Map<LoanId, Loan>','zelfde gedrag'],
+      b:'Een implementatie van LoanRepository met een HashMap, voor de domeintests. Geen database, geen Spring, milliseconden.',
+      c:`class InMemoryLoanRepository implements LoanRepository {
+  private final Map<LoanId, Loan> store = new HashMap<>();
+
+  public Optional<Loan> findById(LoanId id) { return Optional.ofNullable(store.get(id)); }
+  public List<Loan> findActiveByMember(MemberId m) {
+    return store.values().stream()
+        .filter(l -> l.memberId().equals(m) && l.isActive()).toList();
+  }
+  public boolean isOnLoan(BookId b) {
+    return store.values().stream().anyMatch(l -> l.bookId().equals(b) && l.isActive());
+  }
+  public Loan save(Loan loan) { store.put(loan.id(), loan); return loan; }
+}`}
+    ]}
+  ]},
+ {id:'outbound', label:'JPA-adapter', k:'adapter', region:[1000,420,320,200], slot:[1088,508,199,86],
+  e:'Outbound adapter', t:'JpaLoanRepositoryAdapter',
+  b:'De stekker aan de achterkant. Implementeert de port met Spring Data JPA en vertaalt tussen de JPA-entity en het domeinobject.',
+  p:['MemberRepository en BookRepository krijgen elk een eigen, nog kleinere adapter','Overstappen op JDBC of een andere database raakt het domein niet'],
+  ch:[
+   {id:'a-entity', t:'LoanEntity', s:'@Entity', l:['@Id UUID id','Long memberId, bookId','Instant borrowed/returned','@Version long version'],
+    b:'Het databasemodel. Mag eruitzien zoals de database het wil, want niemand buiten de adapter ziet het.',
+    c:`@Entity
+@Table(name = "loan")
+class LoanEntity {
+  @Id UUID id;
+  Long memberId;
+  Long bookId;
+  Instant borrowedAt;
+  Instant returnedAt;
+  @Version long version;
+  protected LoanEntity() {}   // voor JPA
+}`,
+    q:[['Waarom memberId als Long en geen @ManyToOne Member?','Lending heeft het lid niet als object nodig; een id is genoeg. Geen relaties betekent ook geen lazy-loading-verrassingen.']]},
+   {id:'a-sd', t:'Spring Data repo', l:['JpaRepository<LoanEntity, UUID>','findBy…ReturnedAtIsNull','existsBy…ReturnedAtIsNull'],
+    b:'Spring Data leidt de queries af van de methodenamen. Package-private: alleen de adapter gebruikt het.',
+    c:`interface SpringDataLoanRepository extends JpaRepository<LoanEntity, UUID> {
+  List<LoanEntity> findByMemberIdAndReturnedAtIsNull(Long memberId);
+  boolean existsByBookIdAndReturnedAtIsNull(Long bookId);
+}`},
+   {id:'a-mapper', t:'LoanEntityMapper', l:['toEntity(Loan)','toDomain(entity)','via new Loan(…)'],
+    b:'Vertaalt tussen entity en domein. Voor de terugweg gebruikt hij de constructor van Loan, zodat er geen nieuw id of nieuwe tijd ontstaat.',
+    q:[['Hoe maak je een Loan uit de database zonder de start-logica?','Via de constructor met alle velden, die de opgeslagen toestand overneemt. start is alleen voor een nieuwe lening.']]},
+   {id:'a-save', t:'save()', s:'flush + vertaling', l:['saveAndFlush(entity)','catch DataIntegrity…','→ BookAlreadyOnLoanException'],
+    b:'Slaat direct op (flush), zodat een schending van de unique index hier optreedt en niet pas bij de commit buiten de adapter.',
+    c:`@Override
+public Loan save(Loan loan) {
+  try {
+    LoanEntity saved = jpa.saveAndFlush(LoanEntityMapper.toEntity(loan));
+    return LoanEntityMapper.toDomain(saved);
+  } catch (DataIntegrityViolationException e) {
+    throw new BookAlreadyOnLoanException(loan.bookId());
+  }
+}`,
+    q:[['Waarom vertaal je de database-exceptie?','Het domein en de API kennen alleen domeinfouten. Een bekend conflict mag niet als 500 naar buiten lekken.']]}
+  ]},
+ {id:'database', label:'Database', k:'adapter', region:[1070,840,230,180], slot:[1100,928,170,64],
+  e:'Infrastructuur', t:'PostgreSQL',
+  b:'PostgreSQL via Testcontainers, in de tests en bij lokaal draaien. Flyway beheert het schema en de seed-data.',
+  q:[['Waarom geen H2?','H2 kent geen partial index en gedraagt zich anders dan productie. Testcontainers geeft dezelfde database als in productie.']],
+  ch:[
+   {id:'d-tables', t:'Tabellen', l:['member(id, name)','book(id, title)','loan(id, member_id,','  book_id, borrowed_at,','  returned_at, version)'],
+    b:'Drie tabellen. member en book zijn alleen referentiedata.',
+    c:`CREATE TABLE member (id BIGINT PRIMARY KEY, name  TEXT NOT NULL);
+CREATE TABLE book   (id BIGINT PRIMARY KEY, title TEXT NOT NULL);
+
+CREATE TABLE loan (
+  id          UUID PRIMARY KEY,
+  member_id   BIGINT NOT NULL REFERENCES member(id),
+  book_id     BIGINT NOT NULL REFERENCES book(id),
+  borrowed_at TIMESTAMPTZ NOT NULL,
+  returned_at TIMESTAMPTZ,
+  version     BIGINT NOT NULL DEFAULT 0
+);`},
+   {id:'d-index', t:'Partial index', l:['UNIQUE (book_id)','WHERE returned_at','  IS NULL'],
+    b:'De echte garantie dat een boek maar één lopende lening heeft. Postgres ondersteunt dit, H2 niet.',
+    c:`CREATE UNIQUE INDEX one_active_loan_per_book
+  ON loan (book_id) WHERE returned_at IS NULL;`,
+    q:[['Waarom niet gewoon UNIQUE(book_id)?','Een boek wordt vaak uitgeleend. Alleen de lopende lening moet uniek zijn; afgesloten leningen blijven als historie bestaan.']]},
+   {id:'d-flyway', t:'Flyway', l:['V1__schema.sql','V2__seed.sql','ddl-auto=validate'],
+    b:'Het schema is een expliciet, geversioneerd artefact. Hibernate controleert alleen of de entities passen en maakt zelf niets aan.',
+    c:`spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    locations: classpath:db/migration`},
+   {id:'d-tc', t:'Testcontainers', l:['@ServiceConnection','postgres:18','spring-boot:test-run'],
+    b:'Spring Boot start een Postgres-container en zet de verbinding zelf. Geen URL of wachtwoord in de config.',
+    c:`@TestConfiguration(proxyBeanMethods = false)
+class TestcontainersConfiguration {
+  @Bean
+  @ServiceConnection
+  PostgreSQLContainer postgresContainer() {
+    return new PostgreSQLContainer(DockerImageName.parse("postgres:18"));
+  }
+}`}
+  ]},
+ {id:'race', label:'Concurrency', k:'warn', region:[1300,845,290,180], slot:[1330,898,230,104],
+  e:'Kritische vraag', t:'Twee balies, één boek',
+  b:'Twee medewerkers lenen op hetzelfde moment hetzelfde boek uit. Beide checks zien dat het boek vrij is. Zonder extra maatregel ontstaan er twee lopende leningen voor één boek.',
+  q:[['Waarom een constraint en niet alleen de check in code?','De check in code is lezen en daarna schrijven: twee stappen, met ruimte ertussen. Alleen de database kan dit atomair garanderen.'],
+     ['Optimistic of pessimistic locking?','Optimistic, want conflicten zijn zeldzaam. Pessimistic (SELECT … FOR UPDATE) laat elke lening op een lock wachten, ook als er geen conflict is.']],
+  ch:[
+   {id:'r-a', t:'Balie A', l:['isOnLoan(7)? nee','INSERT loan(boek 7)','COMMIT ✓'], b:'De eerste transactie ziet niets bijzonders en slaagt.'},
+   {id:'r-b', t:'Balie B', l:['isOnLoan(7)? nee','INSERT loan(boek 7)','✗ unique violation'], b:'De tweede transactie zag het boek ook als vrij, want A had nog niet gecommit. De insert botst op de partial unique index.'},
+   {id:'r-fix', t:'Afhandeling', l:['adapter: catch','→ BookAlreadyOnLoanException','→ 409 Conflict'], b:'De adapter vertaalt de database-fout naar een domeinfout; de handler maakt er een 409 van; de balie toont een melding.'},
+   {id:'r-max', t:'Max-3-race', l:['zelfde lid, 2 balies','beide zien 2 lopend','→ 4 leningen'],
+    b:'Dezelfde race bestaat voor de max-3-regel. Die vang je niet met een index. Benoemen in het interview; oplossen met een versie op het lid.',
+    q:[['Hoe los je dit op met @Version?','Elke nieuwe lening verhoogt de versie van het lid (bijvoorbeeld via een teller activeLoans). De tweede transactie ziet een verouderde versie en faalt met een OptimisticLockException, die je naar 409 vertaalt.']]}
+  ]},
+ {id:'tests', label:'Tests', k:'quality', region:[40,845,680,180], slot:[72,892,616,110],
+  e:'Kwaliteit', t:'Teststrategie',
+  b:'Elke laag heeft zijn eigen test, zo licht mogelijk. Hoe dichter bij het domein, hoe sneller en hoe meer tests.',
+  q:[['Waarom hier een mock en daar een fake?','In de controller-slice test je vertaling en statuscodes; het gedrag van het domein doet er daar niet toe. In domeintests is dat gedrag juist het punt.']],
+  ch:[
+   {id:'t-domain', t:'Domeintests', s:'JUnit + fake', l:['vierde lening → fout','boek uitgeleend → fout','twee keer terug → fout','onbekend lid → fout'],
+    b:'Testen de regels zonder Spring en zonder database. Draaien in milliseconden.',
+    c:`@Test
+void vierde_lening_wordt_geweigerd() {
+  var loans = new InMemoryLoanRepository();
+  var service = new LoanService(loans, id -> true, id -> true, FIXED_CLOCK);
+  for (long b = 1; b <= 3; b++) service.borrow(MEMBER, new BookId(b));
+
+  assertThrows(MaxLoansReachedException.class,
+      () -> service.borrow(MEMBER, new BookId(4)));
+}`},
+   {id:'t-web', t:'@WebMvcTest', s:'controller-slice', l:['POST → 201 + body','MaxLoans → 409','veld mist → 400','@MockitoBean port'],
+    b:'Start alleen de web-laag. Test vertaling, statuscodes en de foutvorm uit het contract.',
+    c:`@WebMvcTest(LoansController.class)
+class LoansControllerTest {
+  @Autowired MockMvc mvc;
+  @MockitoBean LoanUseCases loans;
+
+  @Test
+  void max_bereikt_geeft_409() throws Exception {
+    when(loans.borrow(any(), any())).thenThrow(new MaxLoansReachedException(new MemberId(1)));
+    mvc.perform(post("/api/v1/loans").contentType(APPLICATION_JSON)
+            .content("""{"memberId":1,"bookId":7}"""))
+       .andExpect(status().isConflict());
+  }
+}`},
+   {id:'t-jpa', t:'@DataJpaTest', s:'adapter + Postgres', l:['save + findActive','index → OnLoan','tegen Postgres'],
+    b:'Test de adapter tegen een echte Postgres: mapping, queries en de vertaling van de unique-index-fout.'},
+   {id:'t-it', t:'@SpringBootTest', s:'hele flow', l:['lenen → 201','terug → 200','lijst → 200'],
+    b:'Eén integratietest over HTTP door de hele app, met de echte database. Bewijst dat alle stekkers in de goede stopcontacten zitten.'}
+  ]},
+ {id:'archunit', label:'ArchUnit', k:'quality', region:[700,845,380,180], slot:[732,908,316,94],
+  e:'Kwaliteit · architectuurtests', t:'ArchUnit-regels',
+  b:'Vier regels maken de architectuur uitvoerbaar. Breekt iemand er een, dan wordt de build rood met de reden erbij.',
+  q:[['Waarom ArchUnit?','Alles zit in één Maven-project, dus de compiler houdt een verkeerde import niet tegen. ArchUnit wel, en de regels zijn meteen uitvoerbare documentatie.']],
+  ch:[
+   {id:'au-1', t:'R1 · kern', l:['domain ✗→ Spring','domain ✗→ JPA · Jackson'], b:'Het domein kent geen frameworks.',
+    c:`@ArchTest
+static final ArchRule domain_is_framework_free = noClasses()
+    .that().resideInAPackage("..domain..")
+    .should().dependOnClassesThat().resideInAnyPackage(
+        "org.springframework..", "jakarta.persistence..", "tools.jackson..", "com.fasterxml.jackson..");`},
+   {id:'au-2', t:'R2 · richting', l:['domain · application','✗→ adapter · config'], b:'Alle afhankelijkheden wijzen naar binnen.',
+    c:`@ArchTest
+static final ArchRule dependencies_point_inward = noClasses()
+    .that().resideInAnyPackage("..domain..", "..application..")
+    .should().dependOnClassesThat().resideInAnyPackage("..adapter..", "..config..");`},
+   {id:'au-3', t:'R3 · contract', l:['DTO\'s alleen in','adapter.in.web'], b:'De JSON-vormen uit het contract komen niet verder dan de controller.',
+    c:`@ArchTest
+static final ArchRule contract_stays_at_the_edge = noClasses()
+    .that().resideOutsideOfPackage("..adapter.in.web..")
+    .should().dependOnClassesThat().resideInAPackage("..adapter.in.web.api..");`},
+   {id:'au-4', t:'R4 · entities', l:['@Entity alleen in','adapter.out.persistence'], b:'Het databasemodel blijft in de adapter.',
+    c:`@ArchTest
+static final ArchRule entities_stay_in_persistence = classes()
+    .that().areAnnotatedWith(Entity.class)
+    .should().resideInAPackage("..adapter.out.persistence..");`}
+  ]},
+ {id:'events', label:'Event-driven', k:'domain', region:[920,280,680,210], slot:[1350,352,220,110],
+  e:'Event-driven · later', t:'Event-driven',
+  b:'Niet gebouwd, wel doordacht. Lending publiceert wat er gebeurd is; andere contexts reageren erop zonder dat Lending ze kent.',
+  p:['Een event is een feit in de verleden tijd, en ook een contract (bijvoorbeeld in AsyncAPI)','Flock gaf aan dat dit het minst belangrijk is; met één context luistert er ook nog niemand'],
+  ch:[
+   {id:'e-event', t:'BookReturned', s:'domain event', l:['LoanId, BookId, Instant','verleden tijd = feit'],
+    b:'Beschrijft wat er gebeurd is, in domeintaal. Geen opdracht aan iemand.',
+    c:`public record BookReturned(LoanId loanId, BookId bookId, Instant at)
+    implements LendingEvent {}`},
+   {id:'e-port', t:'DomainEvents', s:'outbound port', l:['publish(LendingEvent)','transport = adapter'],
+    b:'Het domein publiceert via een port en weet niet hoe het event verstuurd wordt.',
+    c:`public interface DomainEvents { void publish(LendingEvent event); }
+
+// in LoanService.returnBook(...)
+events.publish(new BookReturned(loan.id(), loan.bookId(), clock.instant()));`},
+   {id:'e-outbox', t:'Outbox', l:['INSERT outbox_event','zelfde transactie','relay → Kafka'],
+    b:'Schrijft het event in dezelfde transactie als de lening. Een apart proces publiceert het daarna.',
+    q:[['Waarom een outbox?','Zonder outbox kan het opslaan slagen en het publiceren mislukken, of andersom. Met een outbox gaan ze samen of allebei niet.']]},
+   {id:'e-res', t:'Reservations', s:'andere context', l:['luistert','waarschuwt volgend lid'],
+    b:'Een toekomstige context met een wachtlijst. Hij reageert op BookReturned; Lending hoeft daarvoor niets te veranderen.'}
+  ]}
+ ]};
+
+/* ---------- index tree ---------- */
+const byId = {}; const order = [];
+const KIND = {contract:'ct', domain:'dm', adapter:'ad', warn:'wr', quality:'ql'};
+(function walk(n, parent){
+  n.parent = parent ? parent.id : null;
+  n.k = n.k || (parent && parent.k) || 'quality';
+  n.label = n.label || n.t;
+  n.e = n.e || (parent ? parent.t : '');
+  byId[n.id] = n; order.push(n.id);
+  (n.ch||[]).forEach(c => walk(c, n));
+})(TREE, null);
+
+const svg = document.getElementById('world');
+const NS = 'http://www.w3.org/2000/svg';
+const panel = document.getElementById('panel');
+const pills = document.getElementById('pills');
+const crumbs = document.getElementById('crumbs');
+const count = document.getElementById('count');
+const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const lods = [];
+function el(tag, attrs, parent){ const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; }
+function esc(t){ return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+/* ---------- build generated detail ---------- */
+function gridLayout(n, bx, by, bw, bh){
+  const gap = Math.min(bw, bh) * 0.06; let best = null;
+  for (let c = 1; c <= n; c++){
+    const r = Math.ceil(n/c), cw = (bw-(c-1)*gap)/c, ch = (bh-(r-1)*gap)/r;
+    const score = Math.abs(Math.log((cw/ch)/1.7));
+    if (!best || score < best.score) best = {c, r, cw, ch, score};
+  }
+  const out = [];
+  for (let i = 0; i < n; i++){
+    const col = i % best.c, row = Math.floor(i / best.c);
+    out.push([bx + col*(best.cw+gap), by + row*(best.ch+gap), best.cw, best.ch]);
+  }
+  return out;
+}
+function fillBody(node, host, bx, by, bw, bh){
+  const g = el('g', {class:'lod'}, host);
+  lods.push({g, w:bw, id:node.id});
+  if (node.ch && node.ch.length && !node.region || (node.ch && node.slot)){
+    gridLayout(node.ch.length, bx, by, bw, bh).forEach((r, i) => buildNode(node.ch[i], g, r));
+  } else if (node.l){
+    drawLines(node.l, g, bx, by, bw, bh);
+  }
+}
+function drawLines(lines, g, bx, by, bw, bh){
+  const maxLen = Math.max(...lines.map(s => s.length), 8);
+  const fs = Math.min(bh/(lines.length*1.45 + .2), bw/(maxLen*0.62));
+  const gl = el('g', {class:'gl'}, g);
+  lines.forEach((s, i) => { const t = el('text', {x:bx, y:by + fs*(1.05 + i*1.45), 'font-size':fs}, gl); t.textContent = s; });
+}
+function buildNode(node, parentG, [x,y,w,h]){
+  node.rect = [x,y,w,h];
+  const g = el('g', {class:'hit gn k-'+KIND[node.k], 'data-node':node.id, tabindex:'0', role:'button', 'aria-label':node.t}, parentG);
+  el('rect', {class:'shape', x, y, width:w, height:h, rx:Math.min(w,h)*0.08}, g);
+  const pad = Math.min(w,h)*0.07;
+  const ts = Math.min(h*0.2, (w-2*pad)/(Math.max(node.t.length,5)*0.6));
+  const tt = el('text', {x:x+w/2, y:y+pad+ts*0.9, 'text-anchor':'middle', 'font-size':ts, 'font-weight':600}, g); tt.textContent = node.t;
+  let top = y + pad + ts*1.25;
+  if (node.s){ const ss = ts*0.62; const st = el('text', {x:x+w/2, y:top+ss*0.75, 'text-anchor':'middle', 'font-size':ss, 'font-style':'italic', opacity:.75}, g); st.textContent = node.s; top += ss*1.2; }
+  const by = top + pad*0.3, bh = y + h - pad - by, bx = x + pad, bw = w - 2*pad;
+  if (bh > 0 && (node.ch || node.l)) fillBody(node, g, bx, by, bw, bh);
+}
+// attach detail to hand-drawn nodes
+order.forEach(id => {
+  const n = byId[id]; if (!n.slot) return;
+  const host = svg.querySelector('[data-node="'+id+'"]'); if (!host) return;
+  const [bx,by,bw,bh] = n.slot;
+  const g = el('g', {class:'lod'}, host);
+  lods.push({g, w:bw, id, sums:[...svg.querySelectorAll('.sum[data-for="'+id+'"]')]});
+  if (n.ch) gridLayout(n.ch.length, bx, by, bw, bh).forEach((r,i) => buildNode(n.ch[i], g, r));
+  else if (n.l) drawLines(n.l, g, bx, by, bw, bh);
+});
+
+/* ---------- viewport ---------- */
+let vb = [0,0,1600,1040], anim = null, stageRect = svg.getBoundingClientRect();
+new ResizeObserver(() => { stageRect = svg.getBoundingClientRect(); updateLOD(); }).observe(svg);
+function setVB(v){ vb = v; svg.setAttribute('viewBox', v.join(' ')); updateLOD(); }
+function effW(){ const a = stageRect.width/Math.max(stageRect.height,1); return Math.max(vb[2], vb[3]*a); }
+function updateLOD(){
+  const W = effW();
+  lods.forEach(o => {
+    const on = o.w / W > 0.14;
+    if (o.on !== on){ o.on = on; o.g.classList.toggle('on', on); (o.sums||[]).forEach(s => s.classList.toggle('off', on)); }
+  });
+}
+function regionOf(n){
+  if (n.region) return n.region;
+  const [x,y,w,h] = n.rect, px = w*0.18, py = h*0.18;
+  return [x-px, y-py, w+2*px, h+2*py];
+}
+function animateTo(target){
+  if (anim) cancelAnimationFrame(anim);
+  if (reduce){ setVB(target.slice()); return; }
+  const from = vb.slice(), start = performance.now(), dur = 750;
+  const ease = t => t<.5 ? 4*t*t*t : 1-Math.pow(-2*t+2,3)/2;
+  // size interpolates in log-space so deep zooms feel even; centre moves linearly
+  const lerp = (a,b,t) => a + (b-a)*t, lerpLog = (a,b,t) => Math.exp(lerp(Math.log(a), Math.log(b), t));
+  const fc = [from[0]+from[2]/2, from[1]+from[3]/2], tc = [target[0]+target[2]/2, target[1]+target[3]/2];
+  const step = now => {
+    const t = Math.min(1,(now-start)/dur), e = ease(t);
+    const w = lerpLog(from[2], target[2], e), h = lerpLog(from[3], target[3], e);
+    const cx = lerp(fc[0], tc[0], e), cy = lerp(fc[1], tc[1], e);
+    setVB([cx - w/2, cy - h/2, w, h]);
+    if (t<1) anim = requestAnimationFrame(step); else { anim = null; setVB(target.slice()); }
+  };
+  anim = requestAnimationFrame(step);
+}
+function toSvg(cx, cy){ const p = svg.createSVGPoint(); p.x = cx; p.y = cy; return p.matrixTransform(svg.getScreenCTM().inverse()); }
+function zoomAt(p, k){
+  const [x,y,w,h] = vb; const nw = Math.min(Math.max(w*k, 4), 6000); k = nw/w;
+  setVB([p.x-(p.x-x)*k, p.y-(p.y-y)*k, w*k, h*k]);
+}
+function stopAnim(){ if (anim){ cancelAnimationFrame(anim); anim = null; } }
+svg.addEventListener('wheel', e => {
+  e.preventDefault(); stopAnim();
+  const p = toSvg(e.clientX, e.clientY);
+  const d = e.deltaMode === 1 ? e.deltaY*16 : e.deltaY;
+  zoomAt(p, Math.exp(d * (e.ctrlKey ? 0.01 : 0.0016)));
+}, {passive:false});
+
+const ptrs = new Map(); let drag = null, moved = false, downTarget = null, pinch = null;
+svg.addEventListener('pointerdown', e => {
+  if (e.button !== 0 && e.pointerType === 'mouse') return;
+  stopAnim();
+  ptrs.set(e.pointerId, {x:e.clientX, y:e.clientY});
+  try { svg.setPointerCapture(e.pointerId); } catch(_){}
+  if (ptrs.size === 1){ drag = {x:e.clientX, y:e.clientY, vb:vb.slice(), s:1/svg.getScreenCTM().a}; moved = false; downTarget = e.target; }
+  if (ptrs.size === 2){ const [a,b] = [...ptrs.values()]; pinch = {d:Math.hypot(a.x-b.x, a.y-b.y), mx:(a.x+b.x)/2, my:(a.y+b.y)/2}; moved = true; }
+});
+svg.addEventListener('pointermove', e => {
+  if (!ptrs.has(e.pointerId)) return;
+  ptrs.set(e.pointerId, {x:e.clientX, y:e.clientY});
+  if (ptrs.size === 2 && pinch){
+    const [a,b] = [...ptrs.values()]; const d = Math.hypot(a.x-b.x, a.y-b.y), mx = (a.x+b.x)/2, my = (a.y+b.y)/2;
+    const s = 1/svg.getScreenCTM().a;
+    setVB([vb[0] - (mx-pinch.mx)*s, vb[1] - (my-pinch.my)*s, vb[2], vb[3]]);
+    zoomAt(toSvg(mx,my), pinch.d / Math.max(d,1));
+    pinch = {d, mx, my}; return;
+  }
+  if (drag && ptrs.size === 1){
+    const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    if (!moved && Math.hypot(dx,dy) > 5){ moved = true; svg.classList.add('dragging'); }
+    if (moved) setVB([drag.vb[0] - dx*drag.s, drag.vb[1] - dy*drag.s, drag.vb[2], drag.vb[3]]);
+  }
+});
+function endPtr(e){
+  if (!ptrs.has(e.pointerId)) return;
+  ptrs.delete(e.pointerId);
+  if (ptrs.size < 2) pinch = null;
+  if (ptrs.size === 0){
+    svg.classList.remove('dragging');
+    if (!moved && downTarget && e.type === 'pointerup'){
+      const hit = downTarget.closest && downTarget.closest('.hit');
+      if (hit) go(hit.dataset.node); else { const p = byId[current].parent; go(p || 'overview'); }
+    }
+    drag = null; downTarget = null;
+  }
+}
+svg.addEventListener('pointerup', endPtr);
+svg.addEventListener('pointercancel', endPtr);
+svg.addEventListener('keydown', e => {
+  const hit = e.target.closest && e.target.closest('.hit');
+  if (hit && (e.key === 'Enter' || e.key === ' ')){ e.preventDefault(); e.stopPropagation(); go(hit.dataset.node); }
+});
+function zoomCenter(k){ stopAnim(); zoomAt({x:vb[0]+vb[2]/2, y:vb[1]+vb[3]/2}, k); }
+document.getElementById('z-in').addEventListener('click', () => zoomCenter(1/1.4));
+document.getElementById('z-out').addEventListener('click', () => zoomCenter(1.4));
+document.getElementById('z-fit').addEventListener('click', () => animateTo(regionOf(byId[current])));
+
+/* ---------- panel + navigation ---------- */
+let current = 'overview';
+function lineage(id){ const out=[]; let n=byId[id]; while(n){ out.unshift(n.id); n = n.parent ? byId[n.parent] : null; } return out; }
+TREE.ch.forEach(n => {
+  const b = document.createElement('button');
+  b.type='button'; b.className='pill k-'+n.k; b.dataset.node=n.id;
+  b.innerHTML = '<span class="dot"></span>' + esc(n.label);
+  b.addEventListener('click', () => go(n.id));
+  pills.appendChild(b);
+});
+(function(){ const b = document.createElement('button'); b.type='button'; b.className='pill k-quality'; b.dataset.node='overview'; b.innerHTML='<span class="dot"></span>Overzicht'; b.addEventListener('click',()=>go('overview')); pills.prepend(b); })();
+
+function renderPanel(n){
+  let h = '<span class="eyebrow k-'+n.k+'">'+esc(n.e)+'</span>';
+  h += '<h2>'+esc(n.t)+'</h2>';
+  if (n.b) h += '<p>'+esc(n.b)+'</p>';
+  if (n.p) h += '<h3>Kernpunten</h3><ul>'+n.p.map(p=>'<li>'+esc(p)+'</li>').join('')+'</ul>';
+  if (n.ch) h += '<h3>Inzoomen</h3><div class="children">'+n.ch.map(c=>'<button type="button" class="pill k-'+c.k+'" data-go="'+c.id+'"><span class="dot"></span>'+esc(c.label)+'</button>').join('')+'</div>';
+  if (n.c) h += '<h3>Code</h3><pre><code></code></pre>';
+  if (n.q) h += '<h3>Interviewvragen</h3>'+n.q.map(([q,a])=>'<details><summary>'+esc(q)+'</summary><p>'+esc(a)+'</p></details>').join('');
+  if (n.parent) h += '<div class="up"><button type="button" class="btn" data-go="'+n.parent+'">↑ Terug naar '+esc(byId[n.parent].label)+'</button></div>';
+  panel.innerHTML = h;
+  if (n.c) panel.querySelector('pre code').textContent = n.c;
+  panel.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => go(b.dataset.go)));
+  panel.scrollTop = 0;
+}
+function renderCrumbs(id){
+  const ids = lineage(id);
+  crumbs.innerHTML = ids.map((x,i) => { const last = i===ids.length-1;
+    return (i? '<span class="sep">›</span>' : '') + '<button type="button" class="crumb'+(last?' cur':'')+'" data-go="'+x+'"'+(last?' aria-current="step"':'')+'>'+esc(byId[x].label)+'</button>'; }).join('');
+  crumbs.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => go(b.dataset.go)));
+}
+function go(id){
+  if (!byId[id]) return;
+  current = id;
+  const n = byId[id], line = lineage(id);
+  animateTo(regionOf(n));
+  renderPanel(n); renderCrumbs(id);
+  svg.querySelectorAll('.sel').forEach(e => e.classList.remove('sel'));
+  const g = svg.querySelector('[data-node="'+id+'"]'); if (g) g.classList.add('sel');
+  const top = line[1] || 'overview';
+  pills.querySelectorAll('.pill').forEach(p => { const on = p.dataset.node===top; p.classList.toggle('on', on); if (on) p.scrollIntoView({block:'nearest', inline:'nearest', behavior: reduce?'auto':'smooth'}); });
+  const i = order.indexOf(id);
+  count.textContent = (i+1)+' / '+order.length;
+  document.getElementById('btn-prev').disabled = i===0;
+  document.getElementById('btn-next').disabled = i===order.length-1;
+  try { history.replaceState(null,'', id==='overview' ? location.pathname + location.search : '#'+id); } catch(_){}
+}
+function step(d){ const i = order.indexOf(current); const n = order[i+d]; if (n) go(n); }
+document.getElementById('btn-prev').addEventListener('click', () => step(-1));
+document.getElementById('btn-next').addEventListener('click', () => step(1));
+document.getElementById('btn-overview').addEventListener('click', () => go('overview'));
+document.addEventListener('keydown', e => {
+  const tag = (e.target.tagName||'').toLowerCase();
+  if (tag === 'summary' || tag === 'input') return;
+  if (e.key==='ArrowRight') step(1);
+  else if (e.key==='ArrowLeft') step(-1);
+  else if (e.key==='Escape'){ const p = byId[current].parent; go(p || 'overview'); }
+  else if (e.key==='+' || e.key==='=') zoomCenter(1/1.4);
+  else if (e.key==='-') zoomCenter(1.4);
+});
+
+updateLOD();
+const startId = (location.hash||'').slice(1);
+go(byId[startId] ? startId : 'overview');
+</script>
+
+</body></html>
