@@ -5,10 +5,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import dev.michaelgoldman.libraryapp.domain.exception.BookAlreadyOnLoanException;
 import dev.michaelgoldman.libraryapp.domain.exception.BookNotFoundException;
+import dev.michaelgoldman.libraryapp.domain.exception.LoanNotFoundException;
 import dev.michaelgoldman.libraryapp.domain.exception.MaxLoansReachedException;
 import dev.michaelgoldman.libraryapp.domain.exception.MemberNotFoundException;
 import dev.michaelgoldman.libraryapp.domain.model.BookId;
 import dev.michaelgoldman.libraryapp.domain.model.Loan;
+import dev.michaelgoldman.libraryapp.domain.model.LoanId;
 import dev.michaelgoldman.libraryapp.domain.model.MemberId;
 import java.time.Clock;
 import java.time.Instant;
@@ -83,5 +85,20 @@ class LoanServiceTest {
         existingMembers.clear();
 
         assertThatThrownBy(() -> service.activeLoansOf(MEMBER)).isInstanceOf(MemberNotFoundException.class);
+    }
+
+    @Test
+    void returnBook_whenLoanIsActive_returnReturnedLoan() {
+        Loan loan = loans.save(Loan.start(MEMBER, BOOK, NOW));
+
+        Loan returned = service.returnBook(loan.id());
+
+        assertThat(returned.returnedAt()).isEqualTo(NOW);
+        assertThat(returned.isActive()).isFalse();
+    }
+
+    @Test
+    void returnBook_whenLoanDoesNotExist_throwLoanNotFoundException() {
+        assertThatThrownBy(() -> service.returnBook(LoanId.generate())).isInstanceOf(LoanNotFoundException.class);
     }
 }

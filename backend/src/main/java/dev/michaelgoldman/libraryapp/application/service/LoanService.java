@@ -6,6 +6,7 @@ import dev.michaelgoldman.libraryapp.application.port.out.LoanRepository;
 import dev.michaelgoldman.libraryapp.application.port.out.MemberRepository;
 import dev.michaelgoldman.libraryapp.domain.exception.BookAlreadyOnLoanException;
 import dev.michaelgoldman.libraryapp.domain.exception.BookNotFoundException;
+import dev.michaelgoldman.libraryapp.domain.exception.LoanNotFoundException;
 import dev.michaelgoldman.libraryapp.domain.exception.MaxLoansReachedException;
 import dev.michaelgoldman.libraryapp.domain.exception.MemberNotFoundException;
 import dev.michaelgoldman.libraryapp.domain.model.BookId;
@@ -50,7 +51,9 @@ public class LoanService implements LoanUseCases {
 
     @Override
     public Loan returnBook(LoanId loanId) {
-        throw new UnsupportedOperationException("Not implemented yet");
+        Loan loan = loans.findById(loanId).orElseThrow(() -> new LoanNotFoundException(loanId));
+        loan.returnBook(clock.instant());
+        return loans.save(loan);
     }
 
     @Override
