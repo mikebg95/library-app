@@ -86,6 +86,10 @@ Every error is returned as `application/problem+json` (RFC 9457 `ProblemDetail`)
 
 ## Architecture
 
+[![Architecture diagram](docs/diagrams/architecture/architecture-overview.png)](https://raw.githack.com/mikebg95/library-app/main/docs/diagrams/architecture/bibliotheek-architectuur.html)
+
+**[→ Open the full interactive architecture diagram](https://raw.githack.com/mikebg95/library-app/main/docs/diagrams/architecture/bibliotheek-architectuur.html)** (zoomable, in Dutch)
+
 Hexagonal (ports and adapters), in one Maven project under `dev.michaelgoldman.libraryapp`:
 
 ```
@@ -120,7 +124,7 @@ Discussed, not built: authentication (librarians act on behalf of a member, so `
 
 ## Docs
 
-- [`docs/diagrams/architecture/bibliotheek-architectuur.html`](docs/diagrams/architecture/bibliotheek-architectuur.html): interactive, zoomable architecture diagram (Dutch)
+- [`docs/diagrams/architecture/bibliotheek-architectuur.html`](https://raw.githack.com/mikebg95/library-app/main/docs/diagrams/architecture/bibliotheek-architectuur.html): interactive, zoomable architecture diagram (Dutch)
 - [`docs/diagrams/db/`](docs/diagrams/db/): database diagram
 - [`docs/adr/`](docs/adr/): architecture decision records
 
